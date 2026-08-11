@@ -1,0 +1,239 @@
+{
+  "ver": "2.3.13",
+  "importer": "gltf",
+  "imported": true,
+  "uuid": "b8de7c73-e4ab-4c34-993f-7a845ea397dc",
+  "files": [],
+  "subMetas": {
+    "349e2": {
+      "importer": "gltf-mesh",
+      "uuid": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@349e2",
+      "displayName": "",
+      "id": "349e2",
+      "name": "meshes[0].mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 505450
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "cda31": {
+      "importer": "gltf-embeded-image",
+      "uuid": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@cda31",
+      "displayName": "",
+      "id": "cda31",
+      "name": "green+leaves+3d+model_basecolor.jpg.image",
+      "userData": {
+        "gltfIndex": 0,
+        "fixAlphaTransparencyArtifacts": true,
+        "hasAlpha": false,
+        "type": "texture"
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".jpg",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "5b651": {
+      "importer": "gltf-embeded-image",
+      "uuid": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@5b651",
+      "displayName": "",
+      "id": "5b651",
+      "name": "green+leaves+3d+model_rm.jpg.image",
+      "userData": {
+        "gltfIndex": 1,
+        "fixAlphaTransparencyArtifacts": true,
+        "hasAlpha": false,
+        "type": "texture"
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".jpg",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "b5cde": {
+      "importer": "gltf-embeded-image",
+      "uuid": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@b5cde",
+      "displayName": "",
+      "id": "b5cde",
+      "name": "green+leaves+3d+model_normal.jpg.image",
+      "userData": {
+        "gltfIndex": 2,
+        "fixAlphaTransparencyArtifacts": true,
+        "hasAlpha": false,
+        "type": "texture"
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".jpg",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "3effa": {
+      "importer": "texture",
+      "uuid": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@3effa",
+      "displayName": "",
+      "id": "3effa",
+      "name": "UnnamedTexture-0.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@cda31"
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "221a5": {
+      "importer": "texture",
+      "uuid": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@221a5",
+      "displayName": "",
+      "id": "221a5",
+      "name": "UnnamedTexture-1.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@5b651"
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "0089c": {
+      "importer": "texture",
+      "uuid": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@0089c",
+      "displayName": "",
+      "id": "0089c",
+      "name": "UnnamedTexture-2.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@b5cde"
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "fabab": {
+      "importer": "gltf-material",
+      "uuid": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@fabab",
+      "displayName": "",
+      "id": "fabab",
+      "name": "tripo_material_44e67ee7-6d59-4126-93d0-7ba0c3c78acb.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "fe988": {
+      "importer": "gltf-scene",
+      "uuid": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@fe988",
+      "displayName": "",
+      "id": "fe988",
+      "name": "leaves_grade_1.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [
+      {
+        "name": "green+leaves+3d+model_basecolor.jpg",
+        "uri": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@cda31"
+      },
+      {
+        "name": "green+leaves+3d+model_rm.jpg",
+        "uri": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@5b651"
+      },
+      {
+        "name": "green+leaves+3d+model_normal.jpg",
+        "uri": "b8de7c73-e4ab-4c34-993f-7a845ea397dc@b5cde"
+      }
+    ],
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "b8de7c73-e4ab-4c34-993f-7a845ea397dc@349e2"
+      ],
+      "skeletons": [],
+      "textures": [
+        "b8de7c73-e4ab-4c34-993f-7a845ea397dc@3effa",
+        "b8de7c73-e4ab-4c34-993f-7a845ea397dc@221a5",
+        "b8de7c73-e4ab-4c34-993f-7a845ea397dc@0089c"
+      ],
+      "materials": [
+        "b8de7c73-e4ab-4c34-993f-7a845ea397dc@fabab"
+      ],
+      "scenes": [
+        "b8de7c73-e4ab-4c34-993f-7a845ea397dc@fe988"
+      ]
+    }
+  }
+}

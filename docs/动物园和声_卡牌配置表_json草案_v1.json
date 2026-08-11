@@ -1,0 +1,597 @@
+{
+  "version": "v1",
+  "game": "zoo_harmony",
+  "platform_scope": {
+    "primary_target": "taptap_android",
+    "secondary_reference": "future_platform",
+    "note": "卡牌配置为平台无关配置，可复用到后续其他平台版本。"
+  },
+  "schema": {
+    "card_id": "string",
+    "name": "string",
+    "rarity_color": "white|blue|gold|red",
+    "cost": "number",
+    "cube_slots": "number",
+    "score_steps": "number[]",
+    "placement_cell": {
+      "q": "number",
+      "r": "number",
+      "type": "WT|BN|YL|M1|M2|M3|T1|T2|T3|H"
+    },
+    "pattern_cells": [
+      {
+        "q": "number",
+        "r": "number",
+        "type": "WT|BN|YL|M1|M2|M3|T1|T2|T3|H"
+      }
+    ],
+    "tags": "string[]",
+    "skill_id": "string|null",
+    "balance_note": "string"
+  },
+  "cards": [
+    {
+      "card_id": "W01",
+      "name": "林间兔",
+      "rarity_color": "white",
+      "cost": 1,
+      "cube_slots": 3,
+      "score_steps": [0, 2, 4, 6],
+      "placement_cell": { "q": 0, "r": 0, "type": "T1" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "T1" },
+        { "q": 1, "r": 0, "type": "BN" }
+      ],
+      "tags": ["tree", "basic"],
+      "skill_id": null,
+      "balance_note": "树线最低门槛起手牌"
+    },
+    {
+      "card_id": "W02",
+      "name": "溪流蛙",
+      "rarity_color": "white",
+      "cost": 1,
+      "cube_slots": 3,
+      "score_steps": [0, 2, 4, 6],
+      "placement_cell": { "q": 0, "r": 0, "type": "WT" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "WT" },
+        { "q": 1, "r": 0, "type": "T1" }
+      ],
+      "tags": ["water", "basic"],
+      "skill_id": null,
+      "balance_note": "水线最低门槛起手牌"
+    },
+    {
+      "card_id": "W03",
+      "name": "草原狐",
+      "rarity_color": "white",
+      "cost": 1,
+      "cube_slots": 3,
+      "score_steps": [0, 2, 4, 6],
+      "placement_cell": { "q": 0, "r": 0, "type": "YL" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "YL" },
+        { "q": 1, "r": 0, "type": "YL" },
+        { "q": 2, "r": 0, "type": "BN" }
+      ],
+      "tags": ["field", "basic"],
+      "skill_id": null,
+      "balance_note": "黄地铺展基础牌"
+    },
+    {
+      "card_id": "W04",
+      "name": "岩壁鼠",
+      "rarity_color": "white",
+      "cost": 1,
+      "cube_slots": 3,
+      "score_steps": [0, 2, 4, 6],
+      "placement_cell": { "q": 0, "r": 0, "type": "M1" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "M1" },
+        { "q": 1, "r": 0, "type": "BN" }
+      ],
+      "tags": ["mountain", "basic"],
+      "skill_id": null,
+      "balance_note": "山线最低门槛起手牌"
+    },
+    {
+      "card_id": "W05",
+      "name": "沼泽鸭",
+      "rarity_color": "white",
+      "cost": 1,
+      "cube_slots": 3,
+      "score_steps": [0, 3, 5, 7],
+      "placement_cell": { "q": 0, "r": 0, "type": "WT" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "WT" },
+        { "q": 1, "r": 0, "type": "YL" },
+        { "q": 1, "r": -1, "type": "T1" }
+      ],
+      "tags": ["water", "field", "hybrid"],
+      "skill_id": null,
+      "balance_note": "多色过渡牌"
+    },
+    {
+      "card_id": "W06",
+      "name": "枝头雀",
+      "rarity_color": "white",
+      "cost": 1,
+      "cube_slots": 3,
+      "score_steps": [0, 3, 5, 7],
+      "placement_cell": { "q": 0, "r": 0, "type": "T1" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "T1" },
+        { "q": -1, "r": 0, "type": "T1" },
+        { "q": -2, "r": 0, "type": "BN" }
+      ],
+      "tags": ["tree"],
+      "skill_id": null,
+      "balance_note": "白色树线连段牌"
+    },
+    {
+      "card_id": "W07",
+      "name": "田埂刺猬",
+      "rarity_color": "white",
+      "cost": 1,
+      "cube_slots": 3,
+      "score_steps": [0, 2, 5, 7],
+      "placement_cell": { "q": 0, "r": 0, "type": "BN" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "BN" },
+        { "q": 1, "r": 0, "type": "YL" },
+        { "q": 0, "r": 1, "type": "YL" }
+      ],
+      "tags": ["field"],
+      "skill_id": null,
+      "balance_note": "黄地路线稳定补型牌"
+    },
+    {
+      "card_id": "W08",
+      "name": "河岸獭",
+      "rarity_color": "white",
+      "cost": 1,
+      "cube_slots": 3,
+      "score_steps": [0, 3, 5, 7],
+      "placement_cell": { "q": 0, "r": 0, "type": "WT" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "WT" },
+        { "q": 1, "r": 0, "type": "WT" },
+        { "q": -1, "r": 0, "type": "BN" }
+      ],
+      "tags": ["water"],
+      "skill_id": null,
+      "balance_note": "河流连续段铺垫牌"
+    },
+    {
+      "card_id": "W09",
+      "name": "山脚羊",
+      "rarity_color": "white",
+      "cost": 1,
+      "cube_slots": 3,
+      "score_steps": [0, 2, 5, 7],
+      "placement_cell": { "q": 0, "r": 0, "type": "M1" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "M1" },
+        { "q": 1, "r": 0, "type": "M1" },
+        { "q": 0, "r": 1, "type": "YL" }
+      ],
+      "tags": ["mountain", "field"],
+      "skill_id": null,
+      "balance_note": "山田混线过渡牌"
+    },
+    {
+      "card_id": "W10",
+      "name": "旧墙猫",
+      "rarity_color": "white",
+      "cost": 1,
+      "cube_slots": 3,
+      "score_steps": [0, 3, 5, 7],
+      "placement_cell": { "q": 0, "r": 0, "type": "H" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "H" },
+        { "q": 1, "r": 0, "type": "BN" }
+      ],
+      "tags": ["building", "basic"],
+      "skill_id": null,
+      "balance_note": "建筑路线最低门槛牌"
+    },
+    {
+      "card_id": "W11",
+      "name": "丛林蜥",
+      "rarity_color": "white",
+      "cost": 1,
+      "cube_slots": 3,
+      "score_steps": [0, 2, 4, 6],
+      "placement_cell": { "q": 0, "r": 0, "type": "T1" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "T1" },
+        { "q": 1, "r": 0, "type": "YL" }
+      ],
+      "tags": ["tree", "field"],
+      "skill_id": null,
+      "balance_note": "树田混线基础连接牌"
+    },
+    {
+      "card_id": "W12",
+      "name": "岸滩鹭",
+      "rarity_color": "white",
+      "cost": 1,
+      "cube_slots": 3,
+      "score_steps": [0, 3, 5, 7],
+      "placement_cell": { "q": 0, "r": 0, "type": "WT" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "WT" },
+        { "q": 1, "r": 0, "type": "M1" },
+        { "q": 1, "r": -1, "type": "WT" }
+      ],
+      "tags": ["water", "mountain"],
+      "skill_id": null,
+      "balance_note": "水山路线基础过渡牌"
+    },
+    {
+      "card_id": "B01",
+      "name": "岩冠鹰",
+      "rarity_color": "blue",
+      "cost": 2,
+      "cube_slots": 3,
+      "score_steps": [0, 3, 6, 9],
+      "placement_cell": { "q": 0, "r": 0, "type": "M2" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "M2" },
+        { "q": 1, "r": 0, "type": "M1" },
+        { "q": 0, "r": 1, "type": "BN" }
+      ],
+      "tags": ["mountain", "high_stack"],
+      "skill_id": null,
+      "balance_note": "蓝色山线中坚牌"
+    },
+    {
+      "card_id": "B02",
+      "name": "枝冠猴",
+      "rarity_color": "blue",
+      "cost": 2,
+      "cube_slots": 3,
+      "score_steps": [0, 3, 6, 9],
+      "placement_cell": { "q": 0, "r": 0, "type": "T2" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "T2" },
+        { "q": 1, "r": 0, "type": "T1" },
+        { "q": 0, "r": 1, "type": "BN" }
+      ],
+      "tags": ["tree", "high_stack"],
+      "skill_id": null,
+      "balance_note": "蓝色树线中坚牌"
+    },
+    {
+      "card_id": "B03",
+      "name": "河湾鹿",
+      "rarity_color": "blue",
+      "cost": 2,
+      "cube_slots": 3,
+      "score_steps": [0, 4, 7, 10],
+      "placement_cell": { "q": 0, "r": 0, "type": "WT" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "WT" },
+        { "q": 1, "r": 0, "type": "WT" },
+        { "q": 1, "r": -1, "type": "YL" },
+        { "q": 0, "r": -1, "type": "BN" }
+      ],
+      "tags": ["water", "field"],
+      "skill_id": null,
+      "balance_note": "水地混线方向牌"
+    },
+    {
+      "card_id": "B04",
+      "name": "田原鹤",
+      "rarity_color": "blue",
+      "cost": 2,
+      "cube_slots": 3,
+      "score_steps": [0, 4, 7, 10],
+      "placement_cell": { "q": 0, "r": 0, "type": "YL" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "YL" },
+        { "q": 1, "r": 0, "type": "YL" },
+        { "q": 0, "r": 1, "type": "T1" }
+      ],
+      "tags": ["field", "precise"],
+      "skill_id": null,
+      "balance_note": "黄地路线强化牌"
+    },
+    {
+      "card_id": "B05",
+      "name": "园舍貂",
+      "rarity_color": "blue",
+      "cost": 2,
+      "cube_slots": 3,
+      "score_steps": [0, 3, 6, 9],
+      "placement_cell": { "q": 0, "r": 0, "type": "H" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "H" },
+        { "q": 1, "r": 0, "type": "BN" },
+        { "q": 0, "r": 1, "type": "M1" }
+      ],
+      "tags": ["building", "hybrid"],
+      "skill_id": null,
+      "balance_note": "建筑路线中坚起手牌"
+    },
+    {
+      "card_id": "B06",
+      "name": "峡谷狼",
+      "rarity_color": "blue",
+      "cost": 2,
+      "cube_slots": 3,
+      "score_steps": [0, 3, 6, 9],
+      "placement_cell": { "q": 0, "r": 0, "type": "M2" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "M2" },
+        { "q": 1, "r": 0, "type": "WT" },
+        { "q": 0, "r": 1, "type": "YL" },
+        { "q": -1, "r": 1, "type": "BN" }
+      ],
+      "tags": ["mountain", "water", "hybrid"],
+      "skill_id": null,
+      "balance_note": "蓝色多色山线牌"
+    },
+    {
+      "card_id": "B07",
+      "name": "果冠鹦",
+      "rarity_color": "blue",
+      "cost": 2,
+      "cube_slots": 3,
+      "score_steps": [0, 4, 7, 10],
+      "placement_cell": { "q": 0, "r": 0, "type": "T2" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "T2" },
+        { "q": 1, "r": 0, "type": "YL" },
+        { "q": 0, "r": 1, "type": "BN" },
+        { "q": -1, "r": 1, "type": "T1" }
+      ],
+      "tags": ["tree", "field"],
+      "skill_id": null,
+      "balance_note": "树田构筑关键连接牌"
+    },
+    {
+      "card_id": "B08",
+      "name": "水獭首领",
+      "rarity_color": "blue",
+      "cost": 2,
+      "cube_slots": 3,
+      "score_steps": [0, 3, 6, 9],
+      "placement_cell": { "q": 0, "r": 0, "type": "WT" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "WT" },
+        { "q": 1, "r": 0, "type": "WT" },
+        { "q": 2, "r": 0, "type": "WT" },
+        { "q": 3, "r": 0, "type": "BN" }
+      ],
+      "tags": ["water", "precise"],
+      "skill_id": null,
+      "balance_note": "长河体系方向牌"
+    },
+    {
+      "card_id": "B09",
+      "name": "巡园犬",
+      "rarity_color": "blue",
+      "cost": 2,
+      "cube_slots": 3,
+      "score_steps": [0, 4, 7, 10],
+      "placement_cell": { "q": 0, "r": 0, "type": "H" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "H" },
+        { "q": 1, "r": 0, "type": "YL" },
+        { "q": 0, "r": 1, "type": "WT" },
+        { "q": -1, "r": 1, "type": "T1" }
+      ],
+      "tags": ["building", "hybrid"],
+      "skill_id": null,
+      "balance_note": "建筑多色核心前置牌"
+    },
+    {
+      "card_id": "B10",
+      "name": "石林鹿",
+      "rarity_color": "blue",
+      "cost": 2,
+      "cube_slots": 3,
+      "score_steps": [0, 3, 6, 9],
+      "placement_cell": { "q": 0, "r": 0, "type": "BN" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "BN" },
+        { "q": 1, "r": 0, "type": "M1" },
+        { "q": 1, "r": -1, "type": "T1" },
+        { "q": 0, "r": -1, "type": "M1" }
+      ],
+      "tags": ["mountain", "tree"],
+      "skill_id": null,
+      "balance_note": "中速混线过渡牌"
+    },
+    {
+      "card_id": "G01",
+      "name": "雪岭豹",
+      "rarity_color": "gold",
+      "cost": 3,
+      "cube_slots": 3,
+      "score_steps": [0, 4, 8, 12],
+      "placement_cell": { "q": 0, "r": 0, "type": "M3" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "M3" },
+        { "q": 1, "r": 0, "type": "M1" },
+        { "q": 0, "r": 1, "type": "WT" },
+        { "q": -1, "r": 1, "type": "BN" }
+      ],
+      "tags": ["mountain", "high_stack"],
+      "skill_id": null,
+      "balance_note": "金色山地核心牌"
+    },
+    {
+      "card_id": "G02",
+      "name": "巨冠猿",
+      "rarity_color": "gold",
+      "cost": 3,
+      "cube_slots": 3,
+      "score_steps": [0, 4, 8, 12],
+      "placement_cell": { "q": 0, "r": 0, "type": "T3" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "T3" },
+        { "q": 1, "r": 0, "type": "T1" },
+        { "q": 0, "r": 1, "type": "BN" },
+        { "q": -1, "r": 1, "type": "YL" }
+      ],
+      "tags": ["tree", "high_stack"],
+      "skill_id": null,
+      "balance_note": "金色树线核心牌"
+    },
+    {
+      "card_id": "G03",
+      "name": "湿地鹤王",
+      "rarity_color": "gold",
+      "cost": 3,
+      "cube_slots": 3,
+      "score_steps": [0, 5, 9, 13],
+      "placement_cell": { "q": 0, "r": 0, "type": "WT" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "WT" },
+        { "q": 1, "r": 0, "type": "YL" },
+        { "q": 0, "r": 1, "type": "WT" },
+        { "q": -1, "r": 1, "type": "T1" },
+        { "q": -1, "r": 0, "type": "BN" }
+      ],
+      "tags": ["water", "field", "hybrid"],
+      "skill_id": null,
+      "balance_note": "水地混栖主核牌"
+    },
+    {
+      "card_id": "G04",
+      "name": "古墙豹猫",
+      "rarity_color": "gold",
+      "cost": 3,
+      "cube_slots": 3,
+      "score_steps": [0, 4, 8, 12],
+      "placement_cell": { "q": 0, "r": 0, "type": "H" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "H" },
+        { "q": 1, "r": 0, "type": "WT" },
+        { "q": 0, "r": 1, "type": "YL" },
+        { "q": -1, "r": 1, "type": "M1" }
+      ],
+      "tags": ["building", "hybrid", "precise"],
+      "skill_id": null,
+      "balance_note": "建筑路线中期核心牌"
+    },
+    {
+      "card_id": "G05",
+      "name": "高原羚王",
+      "rarity_color": "gold",
+      "cost": 3,
+      "cube_slots": 3,
+      "score_steps": [0, 5, 9, 13],
+      "placement_cell": { "q": 0, "r": 0, "type": "YL" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "YL" },
+        { "q": 1, "r": 0, "type": "YL" },
+        { "q": 0, "r": 1, "type": "BN" },
+        { "q": -1, "r": 1, "type": "M1" },
+        { "q": -1, "r": 0, "type": "M2" }
+      ],
+      "tags": ["mountain", "field"],
+      "skill_id": null,
+      "balance_note": "山地田野复合终端牌"
+    },
+    {
+      "card_id": "G06",
+      "name": "林泽水鹿",
+      "rarity_color": "gold",
+      "cost": 3,
+      "cube_slots": 3,
+      "score_steps": [0, 4, 8, 12],
+      "placement_cell": { "q": 0, "r": 0, "type": "WT" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "WT" },
+        { "q": 1, "r": 0, "type": "WT" },
+        { "q": 0, "r": 1, "type": "T2" },
+        { "q": -1, "r": 1, "type": "T1" },
+        { "q": -1, "r": 0, "type": "BN" }
+      ],
+      "tags": ["tree", "water"],
+      "skill_id": null,
+      "balance_note": "树水路线中后期核心牌"
+    },
+    {
+      "card_id": "R01",
+      "name": "王冠金雕",
+      "rarity_color": "red",
+      "cost": 4,
+      "cube_slots": 3,
+      "score_steps": [0, 5, 10, 15],
+      "placement_cell": { "q": 0, "r": 0, "type": "M3" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "M3" },
+        { "q": 1, "r": 0, "type": "T2" },
+        { "q": 0, "r": 1, "type": "WT" },
+        { "q": -1, "r": 1, "type": "M1" },
+        { "q": -1, "r": 0, "type": "BN" }
+      ],
+      "tags": ["mountain", "tree", "high_stack"],
+      "skill_id": null,
+      "balance_note": "山树体系王牌"
+    },
+    {
+      "card_id": "R02",
+      "name": "森域象王",
+      "rarity_color": "red",
+      "cost": 4,
+      "cube_slots": 3,
+      "score_steps": [0, 6, 11, 16],
+      "placement_cell": { "q": 0, "r": 0, "type": "T3" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "T3" },
+        { "q": 1, "r": 0, "type": "YL" },
+        { "q": 0, "r": 1, "type": "YL" },
+        { "q": -1, "r": 1, "type": "BN" },
+        { "q": -1, "r": 0, "type": "T1" }
+      ],
+      "tags": ["tree", "field", "high_stack"],
+      "skill_id": null,
+      "balance_note": "树田体系高上限终端牌"
+    },
+    {
+      "card_id": "R03",
+      "name": "河港巨鳄",
+      "rarity_color": "red",
+      "cost": 4,
+      "cube_slots": 3,
+      "score_steps": [0, 5, 10, 15],
+      "placement_cell": { "q": 0, "r": 0, "type": "WT" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "WT" },
+        { "q": 1, "r": 0, "type": "WT" },
+        { "q": 0, "r": 1, "type": "H" },
+        { "q": -1, "r": 1, "type": "YL" },
+        { "q": -1, "r": 0, "type": "M1" }
+      ],
+      "tags": ["water", "building", "hybrid"],
+      "skill_id": null,
+      "balance_note": "水建混线王牌"
+    },
+    {
+      "card_id": "R04",
+      "name": "天穹白鹤",
+      "rarity_color": "red",
+      "cost": 4,
+      "cube_slots": 3,
+      "score_steps": [0, 6, 11, 16],
+      "placement_cell": { "q": 0, "r": 0, "type": "H" },
+      "pattern_cells": [
+        { "q": 0, "r": 0, "type": "H" },
+        { "q": 1, "r": 0, "type": "YL" },
+        { "q": 0, "r": 1, "type": "WT" },
+        { "q": -1, "r": 1, "type": "T1" },
+        { "q": -1, "r": 0, "type": "M3" },
+        { "q": 0, "r": -1, "type": "BN" }
+      ],
+      "tags": ["hybrid", "precise", "high_stack"],
+      "skill_id": null,
+      "balance_note": "全能混色终端牌"
+    }
+  ]
+}
