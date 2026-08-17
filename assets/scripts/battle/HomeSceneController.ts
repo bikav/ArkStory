@@ -184,6 +184,10 @@ export class HomeSceneController extends Component {
         ? (this.cancelMatchButtonSpriteFrame ?? sprite.spriteFrame)
         : (this.startMatchButtonSpriteFrame ?? sprite.spriteFrame);
       sprite.spriteFrame = targetSpriteFrame;
+      this.matchButton.normalSprite = targetSpriteFrame;
+      this.matchButton.hoverSprite = targetSpriteFrame;
+      this.matchButton.pressedSprite = targetSpriteFrame;
+      this.matchButton.disabledSprite = targetSpriteFrame;
       sprite.color = this.submitting
         ? new Color(190, 190, 190, 255)
         : Color.WHITE;

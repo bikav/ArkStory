@@ -23,7 +23,7 @@ interface ApiEnvelope<T> {
   data: T;
 }
 
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
+const DEFAULT_API_BASE_URL = 'https://bikav.cn';
 const DEFAULT_CLIENT_VERSION = '1.0.0';
 const DEFAULT_PLATFORM = 'local_account';
 
