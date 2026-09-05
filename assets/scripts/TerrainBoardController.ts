@@ -41,11 +41,10 @@ const BOARD_ANCHOR_HINT = /cell|hex|slot|anchor|tile/i;
 const BOARD_RADIUS = 2;
 const HEX_SIZE = 0.125;
 const CELL_SURFACE_OFFSET = -0.058;
-const TERRAIN_MODEL_SCALE = 0.2;
 const HIGHLIGHT_GRID_STEP_X = 114;
 const HIGHLIGHT_GRID_STEP_Y = 135;
 const HIGHLIGHT_GRID_COLUMN_OFFSET_Y = 67.5;
-const ANIMAL_TOKEN_SPRITE_FRAME_RESOURCE_PATH = 'textures/animals_spirit/spriteFrame';
+const ANIMAL_TOKEN_SPRITE_FRAME_RESOURCE_PATH = 'textures/animal_cards/animals_spirit/spriteFrame';
 const AXIAL_NEIGHBOR_OFFSETS = [
   { q: 1, r: 0 },
   { q: 1, r: -1 },
@@ -88,12 +87,16 @@ const PIECE_GRID_SPRITE_FRAME_UUID_LIST: string[] = [
 ];
 
 const MODEL_PREFAB_UUIDS = {
-  buildGrade2: '08690a8c-42a3-4d75-ad28-70c36360c7c8@4d9dd',
-  fieldGrade1: '29acc8f0-814e-4739-a603-31d741662081@846a2',
-  leavesGrade1: 'b8de7c73-e4ab-4c34-993f-7a845ea397dc@fe988',
+  buildGrade1: '464e2d29-0c6f-4fdd-9926-aa872c073128@7a2bc',
+  buildGrade2: 'f105c408-1022-423e-b44c-f5aaf43a94bb@e293d',
+  fieldGrade1: 'b609dfcb-1162-4d3f-9cf2-42742f9dbc0e@d716b',
+  leavesGrade1: '5f1f163c-09a7-4613-991a-3a1370831431@9c572',
   leavesGrade2: '95aeca52-bf5b-4411-bbce-77338343c20d@a801b',
   leavesGrade3: 'd86dcb5c-18e3-4172-bfa8-d2d1c12c53ef@1e6fb',
-  riverGrade1: 'df9951f3-35a1-48a2-bc5e-bea48c537f37@72f1c',
+  mountainGrade1: 'a2792aaf-7033-4dac-b9f1-1430e8fdd45e@95879',
+  mountainGrade2: '22b57683-71ac-466f-9782-84cb6d0b332e@af841',
+  mountainGrade3: 'a83885de-ef4a-4312-b45a-338fd514d62b@af841',
+  riverGrade1: '5faa64f6-b8e3-47ad-997d-60ed10b548ab@1b935',
   stumpGrade1: '8591a7bb-6ca6-4979-adfd-5a7936e4eca1@f4029',
   stumpGrade2: '3ee5404c-e268-462b-9aed-5b90e311c3ff@0bc58',
 } as const;
@@ -102,18 +105,24 @@ interface ModelTransformConfig {
   readonly positionZ: number;
   readonly rotationX: number;
   readonly rotationZ: number;
-  readonly scale: number;
+  readonly scaleX: number;
+  readonly scaleY: number;
+  readonly scaleZ: number;
 }
 
 const MODEL_TRANSFORMS: Record<string, ModelTransformConfig> = {
-  [MODEL_PREFAB_UUIDS.buildGrade2]: { positionZ: -0.15, rotationX: -90, rotationZ: 0, scale: 0.1 },
-  [MODEL_PREFAB_UUIDS.riverGrade1]: { positionZ: -0.06, rotationX: -90, rotationZ: 0, scale: TERRAIN_MODEL_SCALE },
-  [MODEL_PREFAB_UUIDS.fieldGrade1]: { positionZ: -0.07, rotationX: -90, rotationZ: 25, scale: TERRAIN_MODEL_SCALE },
-  [MODEL_PREFAB_UUIDS.stumpGrade1]: { positionZ: -0.1, rotationX: -90, rotationZ: 0, scale: 0.1 },
-  [MODEL_PREFAB_UUIDS.stumpGrade2]: { positionZ: -0.14, rotationX: -90, rotationZ: 0, scale: 0.1 },
-  [MODEL_PREFAB_UUIDS.leavesGrade1]: { positionZ: -0.12, rotationX: -90, rotationZ: 0, scale: TERRAIN_MODEL_SCALE },
-  [MODEL_PREFAB_UUIDS.leavesGrade2]: { positionZ: -0.205, rotationX: -90, rotationZ: 0, scale: 0.2 },
-  [MODEL_PREFAB_UUIDS.leavesGrade3]: { positionZ: -0.22, rotationX: -90, rotationZ: 0, scale: 0.2 },
+  [MODEL_PREFAB_UUIDS.buildGrade1]: { positionZ: -0.082, rotationX: -90, rotationZ: 0, scaleX: 0.07, scaleY: 0.07, scaleZ: 0.07 },
+  [MODEL_PREFAB_UUIDS.buildGrade2]: { positionZ: -0.125, rotationX: -90, rotationZ: 0, scaleX: 0.08, scaleY: 0.08, scaleZ: 0.08 },
+  [MODEL_PREFAB_UUIDS.riverGrade1]: { positionZ: -0.07, rotationX: -90, rotationZ: 30, scaleX: 0.08, scaleY: 0.08, scaleZ: 0.08 },
+  [MODEL_PREFAB_UUIDS.fieldGrade1]: { positionZ: -0.07, rotationX: -90, rotationZ: 25, scaleX: 0.08, scaleY: 0.08, scaleZ: 0.08 },
+  [MODEL_PREFAB_UUIDS.mountainGrade1]: { positionZ: -0.068, rotationX: -90, rotationZ: 0, scaleX: 0.05, scaleY: 0.05, scaleZ: 0.05 },
+  [MODEL_PREFAB_UUIDS.mountainGrade2]: { positionZ: -0.075, rotationX: -90, rotationZ: 0, scaleX: 0.08, scaleY: 0.08, scaleZ: 0.08 },
+  [MODEL_PREFAB_UUIDS.mountainGrade3]: { positionZ: -0.12, rotationX: -90, rotationZ: 0, scaleX: 0.1, scaleY: 0.1, scaleZ: 0.1 },
+  [MODEL_PREFAB_UUIDS.stumpGrade1]: { positionZ: -0.09, rotationX: -90, rotationZ: 0, scaleX: 0.08, scaleY: 0.08, scaleZ: 0.08 },
+  [MODEL_PREFAB_UUIDS.stumpGrade2]: { positionZ: -0.12, rotationX: -90, rotationZ: 0, scaleX: 0.08, scaleY: 0.08, scaleZ: 0.08 },
+  [MODEL_PREFAB_UUIDS.leavesGrade1]: { positionZ: -0.075, rotationX: -90, rotationZ: 0, scaleX: 0.07, scaleY: 0.05, scaleZ: 0.07 },
+  [MODEL_PREFAB_UUIDS.leavesGrade2]: { positionZ: -0.215, rotationX: -90, rotationZ: 0, scaleX: 0.2, scaleY: 0.2, scaleZ: 0.2 },
+  [MODEL_PREFAB_UUIDS.leavesGrade3]: { positionZ: -0.2, rotationX: -90, rotationZ: 0, scaleX: 0.2, scaleY: 0.2, scaleZ: 0.2 },
 };
 
 type PlacementListener = (payload: {
@@ -182,6 +191,8 @@ export class TerrainBoardController extends Component {
   private animalPlacementListener: AnimalPlacementListener | null = null;
   private remoteTerrainPlacementHandler: RemoteTerrainPlacementHandler | null = null;
   private remoteAnimalPlacementHandler: RemoteAnimalPlacementHandler | null = null;
+  private boardHiddenForAnimalSelection = false;
+  private boardHiddenForSettlement = false;
   private initialized = false;
 
   onLoad() {
@@ -263,6 +274,16 @@ export class TerrainBoardController extends Component {
     }
 
     this.piecePlacementOverlayVisible = false;
+    this.refreshHighlights();
+  }
+
+  public setBoardHiddenForAnimalSelection(hidden: boolean) {
+    this.boardHiddenForAnimalSelection = hidden;
+    this.refreshHighlights();
+  }
+
+  public setBoardHiddenForSettlement(hidden: boolean) {
+    this.boardHiddenForSettlement = hidden;
     this.refreshHighlights();
   }
 
@@ -553,7 +574,9 @@ export class TerrainBoardController extends Component {
       || (this.pendingAnimalCard !== null && this.animalPlacementOverlayVisible);
 
     if (this.boardNode) {
-      this.boardNode.active = !overlayVisible;
+      this.boardNode.active = !overlayVisible
+        && !this.boardHiddenForAnimalSelection
+        && !this.boardHiddenForSettlement;
     }
 
     if (this.overlayRoot) {
@@ -813,14 +836,16 @@ export class TerrainBoardController extends Component {
       positionZ: 0,
       rotationX: 0,
       rotationZ: 0,
-      scale: TERRAIN_MODEL_SCALE,
+      scaleX: 0.2,
+      scaleY: 0.2,
+      scaleZ: 0.2,
     };
 
     try {
       const prefab = await this.loadPrefab(prefabUuid);
       const terrainInstance = instantiate(prefab);
       terrainInstance.name = 'PlacedTerrainModel';
-      terrainInstance.setScale(modelTransform.scale, modelTransform.scale, modelTransform.scale);
+      terrainInstance.setScale(modelTransform.scaleX, modelTransform.scaleY, modelTransform.scaleZ);
       terrainInstance.setPosition(0, 0, modelTransform.positionZ);
       terrainInstance.setRotationFromEuler(modelTransform.rotationX, 0, modelTransform.rotationZ);
       cell.terrainRoot.addChild(terrainInstance);
@@ -838,7 +863,7 @@ export class TerrainBoardController extends Component {
 
     switch (stackKey) {
       case TerrainPieceType.Building:
-        return MODEL_PREFAB_UUIDS.buildGrade2;
+        return MODEL_PREFAB_UUIDS.buildGrade1;
       case TerrainPieceType.Field:
         return MODEL_PREFAB_UUIDS.fieldGrade1;
       case TerrainPieceType.River:
@@ -854,11 +879,11 @@ export class TerrainBoardController extends Component {
       case `${TerrainPieceType.Stump}|${TerrainPieceType.Stump}|${TerrainPieceType.Leaves}`:
         return MODEL_PREFAB_UUIDS.leavesGrade3;
       case TerrainPieceType.Mountain:
-        return MODEL_PREFAB_UUIDS.stumpGrade1;
+        return MODEL_PREFAB_UUIDS.mountainGrade1;
       case `${TerrainPieceType.Mountain}|${TerrainPieceType.Mountain}`:
-        return MODEL_PREFAB_UUIDS.stumpGrade2;
+        return MODEL_PREFAB_UUIDS.mountainGrade2;
       case `${TerrainPieceType.Mountain}|${TerrainPieceType.Mountain}|${TerrainPieceType.Mountain}`:
-        return MODEL_PREFAB_UUIDS.leavesGrade3;
+        return MODEL_PREFAB_UUIDS.mountainGrade3;
       case `${TerrainPieceType.Stump}|${TerrainPieceType.Building}`:
       case `${TerrainPieceType.Mountain}|${TerrainPieceType.Building}`:
       case `${TerrainPieceType.Building}|${TerrainPieceType.Building}`:

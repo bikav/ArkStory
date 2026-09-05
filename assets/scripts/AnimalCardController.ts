@@ -45,7 +45,7 @@ const OVERLAY_WIDTH = 720;
 const OVERLAY_HEIGHT = 1280;
 const SPIRIT_ICON_LAYER_NAME = 'SpiritIconLayer';
 const SPIRIT_ICON_PREFIX = 'SpiritIcon_';
-const SPIRIT_ICON_RESOURCE_PATH = 'textures/animals_spirit/spriteFrame';
+const SPIRIT_ICON_RESOURCE_PATH = 'textures/animal_cards/animals_spirit/spriteFrame';
 
 @ccclass('AnimalCardController')
 export class AnimalCardController extends Component {
@@ -70,6 +70,7 @@ export class AnimalCardController extends Component {
   private sharedMyState: MatchAnimalStatePayload | null = null;
   private sharedOpponentState: MatchAnimalStatePayload | null = null;
   private viewingOpponentState = false;
+  private overlayVisibilityListener: ((visible: boolean) => void) | null = null;
 
   onLoad() {
     this.initializeRuntimeStates();
@@ -103,6 +104,11 @@ export class AnimalCardController extends Component {
   }) {
     this.sharedBattleMode = true;
     this.remoteRecruitHandler = config.onRecruitCardSlot;
+  }
+
+  public setOverlayVisibilityListener(listener: ((visible: boolean) => void) | null) {
+    this.overlayVisibilityListener = listener;
+    this.notifyOverlayVisibilityChanged();
   }
 
   public applySharedStates(
@@ -317,6 +323,7 @@ export class AnimalCardController extends Component {
 
     this.overlayRoot.active = true;
     this.overlayRoot.setSiblingIndex(this.node.children.length - 1);
+    this.notifyOverlayVisibilityChanged();
     this.render();
   }
 
@@ -324,6 +331,7 @@ export class AnimalCardController extends Component {
     if (this.overlayRoot) {
       this.overlayRoot.active = false;
     }
+    this.notifyOverlayVisibilityChanged();
   }
 
   public toggleOverlay() {
@@ -337,6 +345,10 @@ export class AnimalCardController extends Component {
 
   private onCloseOverlayClicked() {
     this.hideOverlay();
+  }
+
+  private notifyOverlayVisibilityChanged() {
+    this.overlayVisibilityListener?.(this.overlayRoot?.active ?? false);
   }
 
   private ensureOverlay() {
@@ -368,21 +380,27 @@ export class AnimalCardController extends Component {
       backgroundNode = new Node(OVERLAY_BACKGROUND_NAME);
       backgroundNode.layer = this.node.layer;
       this.overlayRoot.addChild(backgroundNode);
+    }
 
-      const transform = backgroundNode.addComponent(UITransform);
-      transform.setContentSize(OVERLAY_WIDTH, OVERLAY_HEIGHT);
+    let transform = backgroundNode.getComponent(UITransform);
+    if (!transform) {
+      transform = backgroundNode.addComponent(UITransform);
+    }
+    transform.setContentSize(OVERLAY_WIDTH, OVERLAY_HEIGHT);
 
-      const sprite = backgroundNode.addComponent(Sprite);
-      sprite.sizeMode = Sprite.SizeMode.CUSTOM;
-      sprite.color = new Color(255, 255, 255, 245);
+    // Some mobile GPUs render garbage pixels for a fully transparent Sprite with
+    // a null SpriteFrame. Keep this node as a pure input blocker instead.
+    const backgroundSprite = backgroundNode.getComponent(Sprite);
+    if (backgroundSprite) {
+      backgroundSprite.destroy();
+    }
 
-      const pageBackground = this.node.getChildByName('PageBG')?.getComponent(Sprite) ?? null;
-      sprite.spriteFrame = pageBackground?.spriteFrame ?? null;
-
+    if (!backgroundNode.getComponent(BlockInputEvents)) {
       backgroundNode.addComponent(BlockInputEvents);
     }
 
     backgroundNode.setPosition(0, 0, 0);
+    backgroundNode.setSiblingIndex(0);
   }
 
   private ensureOverlayTitle() {

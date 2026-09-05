@@ -288,6 +288,13 @@ function evaluatePlacement(
         return rejectPlacement(currentStack, 'Building can only be placed on top of building, mountain, or stump.');
       }
 
+      if (
+        (topPiece === TerrainPieceType.Mountain || topPiece === TerrainPieceType.Stump)
+        && currentStack.length > 1
+      ) {
+        return rejectPlacement(currentStack, 'Building can only use a single-layer mountain or stump as its base.');
+      }
+
       const buildingLayerCount = currentStack.filter((value) => value === TerrainPieceType.Building).length;
       if (buildingLayerCount >= MAX_BUILDING_LAYERS) {
         return rejectPlacement(currentStack, `Building layers are capped at ${MAX_BUILDING_LAYERS}.`);

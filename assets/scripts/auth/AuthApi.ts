@@ -15,6 +15,8 @@ export interface AuthSessionPayload {
   platform: string;
   account: string;
   display_name: string;
+  avatar_type?: string;
+  avatar_value?: string;
 }
 
 interface ApiEnvelope<T> {

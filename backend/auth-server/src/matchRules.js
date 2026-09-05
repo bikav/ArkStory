@@ -22,6 +22,7 @@ const PROTOTYPE_WHITE_ANIMAL_CARDS = {
   W01: {
     cardId: 'W01',
     cubeSlots: 3,
+    scoreSteps: [0, 2, 4, 6],
     placementCell: { q: 0, r: 0, type: 'T1' },
     patternCells: [
       { q: 0, r: 0, type: 'T1' },
@@ -32,6 +33,7 @@ const PROTOTYPE_WHITE_ANIMAL_CARDS = {
   W02: {
     cardId: 'W02',
     cubeSlots: 3,
+    scoreSteps: [0, 2, 4, 6],
     placementCell: { q: 0, r: 0, type: 'WT' },
     patternCells: [
       { q: 0, r: 0, type: 'WT' },
@@ -42,6 +44,7 @@ const PROTOTYPE_WHITE_ANIMAL_CARDS = {
   W03: {
     cardId: 'W03',
     cubeSlots: 3,
+    scoreSteps: [0, 3, 5, 7],
     placementCell: { q: 0, r: 0, type: 'H' },
     patternCells: [
       { q: 0, r: 0, type: 'H' },
@@ -531,6 +534,343 @@ function getAnimalDefinition(cardId) {
   return PROTOTYPE_WHITE_ANIMAL_CARDS[cardId] ?? null;
 }
 
+function getAnimalAccumulatedScore(cardDefinition, placedCubeCount) {
+  const scoreSteps = Array.isArray(cardDefinition?.scoreSteps) ? cardDefinition.scoreSteps : [];
+  const clampedIndex = Math.max(0, Math.min(placedCubeCount, scoreSteps.length - 1));
+  let totalScore = 0;
+
+  for (let index = 1; index <= clampedIndex; index += 1) {
+    totalScore += Number.isFinite(scoreSteps[index]) ? scoreSteps[index] : 0;
+  }
+
+  return totalScore;
+}
+
+function calculateAnimalScore(animalState) {
+  if (!animalState || typeof animalState !== 'object' || !animalState.runtime_states) {
+    return 0;
+  }
+
+  let totalScore = 0;
+
+  for (const [cardId, runtimeState] of Object.entries(animalState.runtime_states)) {
+    if (!runtimeState || runtimeState.recruited !== true) {
+      continue;
+    }
+
+    const cardDefinition = getAnimalDefinition(cardId);
+    if (!cardDefinition) {
+      continue;
+    }
+
+    totalScore += getAnimalAccumulatedScore(cardDefinition, runtimeState.placed_anchors.length);
+  }
+
+  return totalScore;
+}
+
+function getTopTerrainPiece(stack) {
+  return Array.isArray(stack) && stack.length > 0
+    ? stack[stack.length - 1]
+    : null;
+}
+
+function isMountainStack(stack) {
+  return Array.isArray(stack)
+    && stack.length >= 1
+    && stack.length <= 3
+    && stack.every((pieceType) => pieceType === TerrainPieceType.Mountain);
+}
+
+function countRemainingEmptyCells(snapshot) {
+  const occupiedCells = new Set(
+    (Array.isArray(snapshot?.terrain_cells) ? snapshot.terrain_cells : [])
+      .filter((cell) => Number.isInteger(cell?.q) && Number.isInteger(cell?.r))
+      .map((cell) => toCoordinateKey(cell.q, cell.r)),
+  );
+
+  return ALL_BOARD_COORDINATES.reduce((count, coordinate) => {
+    return occupiedCells.has(toCoordinateKey(coordinate.q, coordinate.r))
+      ? count
+      : count + 1;
+  }, 0);
+}
+
+function scoreTrees(snapshot) {
+  let score = 0;
+
+  for (const cell of snapshot.terrain_cells) {
+    const stack = Array.isArray(cell?.stack) ? cell.stack : [];
+    if (stack.length === 1 && stack[0] === TerrainPieceType.Leaves) {
+      score += 1;
+      continue;
+    }
+
+    if (
+      stack.length === 2
+      && stack[0] === TerrainPieceType.Stump
+      && stack[1] === TerrainPieceType.Leaves
+    ) {
+      score += 3;
+      continue;
+    }
+
+    if (
+      stack.length === 3
+      && stack[0] === TerrainPieceType.Stump
+      && stack[1] === TerrainPieceType.Stump
+      && stack[2] === TerrainPieceType.Leaves
+    ) {
+      score += 7;
+    }
+  }
+
+  return score;
+}
+
+function scoreMountains(snapshot) {
+  let score = 0;
+  const mountainCells = (Array.isArray(snapshot?.terrain_cells) ? snapshot.terrain_cells : [])
+    .filter((cell) => isMountainStack(cell?.stack));
+
+  for (const cell of mountainCells) {
+    const hasNeighborMountain = getBoardNeighborCoordinates(cell.q, cell.r).some((coordinate) => {
+      const neighborCell = getTerrainCell(snapshot, coordinate.q, coordinate.r);
+      return isMountainStack(neighborCell?.stack);
+    });
+
+    if (!hasNeighborMountain) {
+      continue;
+    }
+
+    if (cell.stack.length === 1) {
+      score += 1;
+    } else if (cell.stack.length === 2) {
+      score += 3;
+    } else if (cell.stack.length === 3) {
+      score += 7;
+    }
+  }
+
+  return score;
+}
+
+function scoreFields(snapshot) {
+  let score = 0;
+  const visited = new Set();
+
+  for (const coordinate of ALL_BOARD_COORDINATES) {
+    const key = toCoordinateKey(coordinate.q, coordinate.r);
+    if (visited.has(key)) {
+      continue;
+    }
+
+    const startCell = getTerrainCell(snapshot, coordinate.q, coordinate.r);
+    if (getTopTerrainPiece(startCell?.stack) !== TerrainPieceType.Field) {
+      continue;
+    }
+
+    const queue = [coordinate];
+    visited.add(key);
+    let componentSize = 0;
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current) {
+        continue;
+      }
+
+      componentSize += 1;
+
+      for (const neighbor of getBoardNeighborCoordinates(current.q, current.r)) {
+        const neighborKey = toCoordinateKey(neighbor.q, neighbor.r);
+        if (visited.has(neighborKey)) {
+          continue;
+        }
+
+        const neighborCell = getTerrainCell(snapshot, neighbor.q, neighbor.r);
+        if (getTopTerrainPiece(neighborCell?.stack) !== TerrainPieceType.Field) {
+          continue;
+        }
+
+        visited.add(neighborKey);
+        queue.push(neighbor);
+      }
+    }
+
+    if (componentSize >= 2) {
+      score += 5;
+    }
+  }
+
+  return score;
+}
+
+function scoreBuildings(snapshot) {
+  let score = 0;
+
+  for (const cell of snapshot.terrain_cells) {
+    const stack = Array.isArray(cell?.stack) ? cell.stack : [];
+    if (stack.length < 2 || getTopTerrainPiece(stack) !== TerrainPieceType.Building) {
+      continue;
+    }
+
+    const foundationType = stack[stack.length - 2];
+    if (
+      foundationType !== TerrainPieceType.Stump
+      && foundationType !== TerrainPieceType.Mountain
+      && foundationType !== TerrainPieceType.Building
+    ) {
+      continue;
+    }
+
+    const adjacentTopColors = new Set();
+    for (const neighbor of getBoardNeighborCoordinates(cell.q, cell.r)) {
+      const neighborCell = getTerrainCell(snapshot, neighbor.q, neighbor.r);
+      const topPiece = getTopTerrainPiece(neighborCell?.stack);
+      if (topPiece) {
+        adjacentTopColors.add(topPiece);
+      }
+    }
+
+    if (adjacentTopColors.size >= 3) {
+      score += 5;
+    }
+  }
+
+  return score;
+}
+
+function getRiverScoreByLength(length) {
+  if (length <= 1) {
+    return 0;
+  }
+  if (length === 2) {
+    return 2;
+  }
+  if (length === 3) {
+    return 5;
+  }
+  if (length === 4) {
+    return 8;
+  }
+  if (length === 5) {
+    return 11;
+  }
+  if (length === 6) {
+    return 15;
+  }
+  return 15 + (length - 6) * 4;
+}
+
+function buildRiverComponent(snapshot, startCoordinate, visited) {
+  const queue = [startCoordinate];
+  const component = [];
+  visited.add(toCoordinateKey(startCoordinate.q, startCoordinate.r));
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) {
+      continue;
+    }
+
+    component.push(current);
+
+    for (const neighbor of getBoardNeighborCoordinates(current.q, current.r)) {
+      const neighborKey = toCoordinateKey(neighbor.q, neighbor.r);
+      if (visited.has(neighborKey)) {
+        continue;
+      }
+
+      const neighborCell = getTerrainCell(snapshot, neighbor.q, neighbor.r);
+      if (getTopTerrainPiece(neighborCell?.stack) !== TerrainPieceType.River) {
+        continue;
+      }
+
+      visited.add(neighborKey);
+      queue.push(neighbor);
+    }
+  }
+
+  return component;
+}
+
+function getLongestRiverPathLength(snapshot, riverCells) {
+  if (riverCells.length <= 1) {
+    return riverCells.length;
+  }
+
+  const riverCellKeys = new Set(riverCells.map((cell) => toCoordinateKey(cell.q, cell.r)));
+  let longestLength = 0;
+
+  const dfs = (coordinate, pathVisited, currentLength) => {
+    longestLength = Math.max(longestLength, currentLength);
+
+    for (const neighbor of getBoardNeighborCoordinates(coordinate.q, coordinate.r)) {
+      const neighborKey = toCoordinateKey(neighbor.q, neighbor.r);
+      if (!riverCellKeys.has(neighborKey) || pathVisited.has(neighborKey)) {
+        continue;
+      }
+
+      pathVisited.add(neighborKey);
+      dfs(neighbor, pathVisited, currentLength + 1);
+      pathVisited.delete(neighborKey);
+    }
+  };
+
+  for (const cell of riverCells) {
+    const startKey = toCoordinateKey(cell.q, cell.r);
+    const pathVisited = new Set([startKey]);
+    dfs(cell, pathVisited, 1);
+  }
+
+  return longestLength;
+}
+
+function scoreRivers(snapshot) {
+  let longestRiverLength = 0;
+  const visited = new Set();
+
+  for (const coordinate of ALL_BOARD_COORDINATES) {
+    const key = toCoordinateKey(coordinate.q, coordinate.r);
+    if (visited.has(key)) {
+      continue;
+    }
+
+    const startCell = getTerrainCell(snapshot, coordinate.q, coordinate.r);
+    if (getTopTerrainPiece(startCell?.stack) !== TerrainPieceType.River) {
+      continue;
+    }
+
+    const component = buildRiverComponent(snapshot, coordinate, visited);
+    longestRiverLength = Math.max(
+      longestRiverLength,
+      getLongestRiverPathLength(snapshot, component),
+    );
+  }
+
+  return getRiverScoreByLength(longestRiverLength);
+}
+
+function calculateTerrainScore(snapshot) {
+  const treeScore = scoreTrees(snapshot);
+  const mountainScore = scoreMountains(snapshot);
+  const fieldScore = scoreFields(snapshot);
+  const buildingScore = scoreBuildings(snapshot);
+  const riverScore = scoreRivers(snapshot);
+
+  return {
+    total: treeScore + mountainScore + fieldScore + buildingScore + riverScore,
+    breakdown: {
+      trees: treeScore,
+      mountains: mountainScore,
+      fields: fieldScore,
+      buildings: buildingScore,
+      rivers: riverScore,
+    },
+  };
+}
+
 function getActiveAnimalCount(animalState) {
   return Object.values(animalState.runtime_states).filter((runtimeState) => runtimeState.recruited === true).length;
 }
@@ -730,6 +1070,9 @@ module.exports = {
   normalizeAnimalStates,
   serializeAnimalStates,
   toAnimalStatePayload,
+  calculateAnimalScore,
+  calculateTerrainScore,
+  countRemainingEmptyCells,
   recruitAnimalFromMarket,
   placeAnimalOnBoard,
 };

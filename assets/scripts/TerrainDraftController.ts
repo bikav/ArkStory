@@ -50,6 +50,8 @@ export class TerrainDraftController extends Component {
 
   private countdownBgNode: Node | null = null;
   private countdownLabel: Label | null = null;
+  private scoreboardBgNode: Node | null = null;
+  private scoreLabel: Label | null = null;
   private countdownRemainingSeconds = BATTLE_COUNTDOWN_SECONDS;
   private sharedBattleMode = false;
   private sharedPlayerId: number | null = null;
@@ -92,6 +94,12 @@ export class TerrainDraftController extends Component {
   private pendingSharedMatchState: MatchSummaryPayload | null = null;
   private latestMyBoardSnapshot: BoardSnapshotPayload | null = null;
   private latestOpponentBoardSnapshot: BoardSnapshotPayload | null = null;
+  private latestRoomStatus = 0;
+  private latestMyScore = 0;
+  private latestOpponentScore = 0;
+  private latestMyFinalScore = 0;
+  private latestOpponentFinalScore = 0;
+  private latestMyResultType: MatchSummaryPayload['my_result_type'] = 'pending';
   private viewingOpponentBoard = false;
   private switchEnemyChessboardBgSpriteFrame: SpriteFrame | null = null;
   private switchOurChessboardBgSpriteFrame: SpriteFrame | null = null;
@@ -99,6 +107,8 @@ export class TerrainDraftController extends Component {
 
   onLoad() {
     this.countdownBgNode = this.node.getChildByName('CountdownBG');
+    this.scoreboardBgNode = this.node.getChildByName('ScoreboardBG');
+    this.scoreLabel = this.scoreboardBgNode?.getChildByName('Score')?.getComponent(Label) ?? null;
     this.topPieceRow = this.node.getChildByName('TopPieceRow');
     this.switchChessboardButtonNode = this.node.getChildByName('SwitchChessboardButton');
     this.switchChessboardButtonSprite = this.switchChessboardButtonNode?.getComponent(Sprite) ?? null;
@@ -114,6 +124,9 @@ export class TerrainDraftController extends Component {
     });
     this.animalCardController = this.getComponent(AnimalCardController) ?? this.addComponent(AnimalCardController);
     this.animalCardController.initialize(this.boardController);
+    this.animalCardController.setOverlayVisibilityListener((visible) => {
+      this.boardController?.setBoardHiddenForAnimalSelection(visible);
+    });
 
     if (this.confirmButtonNode) {
       this.confirmButtonNode.active = false;
@@ -129,6 +142,7 @@ export class TerrainDraftController extends Component {
     }
 
     this.ensureCountdownLabel();
+    this.refreshScoreDisplay();
   }
 
   onDestroy() {
@@ -137,6 +151,11 @@ export class TerrainDraftController extends Component {
 
     if (this.boardController) {
       this.boardController.setPlacementListener(null);
+      this.boardController.setBoardHiddenForAnimalSelection(false);
+    }
+
+    if (this.animalCardController) {
+      this.animalCardController.setOverlayVisibilityListener(null);
     }
 
     if (this.confirmButtonNode) {
@@ -237,12 +256,18 @@ export class TerrainDraftController extends Component {
 
   public applySharedMatchState(state: MatchSummaryPayload) {
     if (!this.isReady) {
+      this.latestRoomStatus = state.room_status;
       this.activeTurnPlayerId = state.turn_player_id;
       this.sharedTurnDeadlineMs = state.turn_deadline_at
         ? new Date(state.turn_deadline_at).getTime()
         : null;
       this.latestMyBoardSnapshot = state.my_board_snapshot;
       this.latestOpponentBoardSnapshot = state.opponent_board_public_snapshot;
+      this.latestMyScore = state.my_score ?? 0;
+      this.latestOpponentScore = state.opponent_score ?? 0;
+      this.latestMyFinalScore = state.my_final_score ?? 0;
+      this.latestOpponentFinalScore = state.opponent_final_score ?? 0;
+      this.latestMyResultType = state.my_result_type ?? 'pending';
       if (!this.latestOpponentBoardSnapshot) {
         this.viewingOpponentBoard = false;
       }
@@ -262,6 +287,7 @@ export class TerrainDraftController extends Component {
 
     this.slotGroups.length = 0;
     this.slotGroups.push(...normalizedGroups);
+    this.latestRoomStatus = state.room_status;
     this.activeTurnPlayerId = state.turn_player_id;
     this.activeTurnSlotIndex = state.terrain_market_snapshot.active_slot_index ?? -1;
     this.sharedTurnDeadlineMs = state.turn_deadline_at
@@ -270,6 +296,11 @@ export class TerrainDraftController extends Component {
     this.isAutoEndingTurn = false;
     this.latestMyBoardSnapshot = state.my_board_snapshot;
     this.latestOpponentBoardSnapshot = state.opponent_board_public_snapshot;
+    this.latestMyScore = state.my_score ?? 0;
+    this.latestOpponentScore = state.opponent_score ?? 0;
+    this.latestMyFinalScore = state.my_final_score ?? 0;
+    this.latestOpponentFinalScore = state.opponent_final_score ?? 0;
+    this.latestMyResultType = state.my_result_type ?? 'pending';
     if (!this.latestOpponentBoardSnapshot) {
       this.viewingOpponentBoard = false;
     }
@@ -285,6 +316,7 @@ export class TerrainDraftController extends Component {
     }
 
     this.refreshDisplayedBoardSnapshot();
+    this.refreshScoreDisplay();
     this.animalCardController?.applySharedStates(
       state.my_animal_state,
       state.opponent_animal_state,
@@ -360,10 +392,19 @@ export class TerrainDraftController extends Component {
     return this.viewingOpponentBoard;
   }
 
+  public setBoardHiddenForSettlement(hidden: boolean) {
+    this.boardController?.setBoardHiddenForSettlement(hidden);
+  }
+
+  public hideAnimalSelectionOverlay() {
+    this.animalCardController?.hideOverlay();
+  }
+
   public toggleBoardPerspective(): boolean {
     if (!this.canToggleBoardPerspective()) {
       this.viewingOpponentBoard = false;
       this.refreshDisplayedBoardSnapshot();
+      this.refreshScoreDisplay();
       this.animalCardController?.setViewingOpponentState(false);
       this.refreshPerspectiveVisibility();
       return false;
@@ -372,6 +413,7 @@ export class TerrainDraftController extends Component {
     this.viewingOpponentBoard = !this.viewingOpponentBoard;
     this.clearBoardInteractionSelection();
     this.refreshDisplayedBoardSnapshot();
+    this.refreshScoreDisplay();
     this.animalCardController?.setViewingOpponentState(this.viewingOpponentBoard);
     this.refreshEndTurnButtonState();
     this.refreshPerspectiveVisibility();
@@ -436,6 +478,19 @@ export class TerrainDraftController extends Component {
     this.countdownLabel = label;
   }
 
+  private refreshScoreDisplay(displayedScore?: number) {
+    if (!this.scoreLabel) {
+      return;
+    }
+
+    const score = displayedScore ?? (
+      this.latestRoomStatus === 3
+        ? (this.viewingOpponentBoard ? this.latestOpponentFinalScore : this.latestMyFinalScore)
+        : (this.viewingOpponentBoard ? this.latestOpponentScore : this.latestMyScore)
+    );
+    this.scoreLabel.string = `${score}`;
+  }
+
   private startCountdown() {
     this.unschedule(this.tickCountdown);
     this.countdownRemainingSeconds = BATTLE_COUNTDOWN_SECONDS;
@@ -479,6 +534,13 @@ export class TerrainDraftController extends Component {
 
   private refreshCountdownDisplay() {
     if (!this.countdownLabel) {
+      return;
+    }
+
+    if (this.sharedBattleMode && this.latestRoomStatus === 3) {
+      this.countdownLabel.string = this.latestMyResultType === 'win'
+        ? '胜利'
+        : (this.latestMyResultType === 'lose' ? '失败' : '平局');
       return;
     }
 

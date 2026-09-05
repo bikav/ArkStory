@@ -5,6 +5,8 @@ export interface MatchOpponentPayload {
   player_id: number;
   account: string;
   display_name: string;
+  avatar_type?: string;
+  avatar_value?: string;
 }
 
 export interface BoardTerrainCellPayload {
@@ -58,6 +60,22 @@ export interface MatchSummaryPayload {
   seat_no: number;
   my_player_id: number;
   is_my_turn: boolean;
+  winner_player_id: number | null;
+  end_trigger_type: string | null;
+  end_trigger_turn_no: number | null;
+  final_round_player_id: number | null;
+  end_reason: string | null;
+  end_time: string | null;
+  my_score: number;
+  opponent_score: number;
+  my_terrain_score: number;
+  opponent_terrain_score: number;
+  my_final_score: number;
+  opponent_final_score: number;
+  my_result_type: 'pending' | 'win' | 'lose' | 'draw';
+  opponent_result_type: 'pending' | 'win' | 'lose' | 'draw';
+  my_avatar_type?: string;
+  my_avatar_value?: string;
   my_board_snapshot: BoardSnapshotPayload;
   opponent_board_public_snapshot: BoardSnapshotPayload | null;
   my_animal_state: MatchAnimalStatePayload;
@@ -92,6 +110,27 @@ export interface MatchmakingStatePayload {
 export interface LeaveMatchResultPayload {
   deleted: boolean;
   remaining_connected_players: number;
+}
+
+export interface PlayerProfilePayload {
+  player_id: number;
+  account_name: string;
+  display_name: string;
+  email: string | null;
+  region: string | null;
+  avatar_type?: string;
+  avatar_value?: string;
+  registration_date: string | null;
+  signature?: string | null;
+  gold_coin?: number;
+  gem?: number;
+  card_shard?: number;
+}
+
+export interface UpdatePlayerProfilePayload {
+  display_name?: string;
+  email?: string;
+  region?: string;
 }
 
 interface ApiEnvelope<T> {
@@ -130,6 +169,18 @@ export class MatchApi {
 
   public async cancel(): Promise<MatchmakingStatePayload> {
     return this.request<MatchmakingStatePayload>('/api/v1/matchmaking/cancel', 'POST');
+  }
+
+  public async getPlayerProfile(): Promise<PlayerProfilePayload> {
+    return this.request<PlayerProfilePayload>('/api/v1/player/profile', 'GET');
+  }
+
+  public async logout(): Promise<void> {
+    await this.request<Record<string, never>>('/api/v1/auth/logout', 'POST');
+  }
+
+  public async updatePlayerProfile(payload: UpdatePlayerProfilePayload): Promise<PlayerProfilePayload> {
+    return this.request<PlayerProfilePayload>('/api/v1/player/profile/update', 'POST', payload);
   }
 
   public async getMatchState(matchId: number, sinceVersion?: number): Promise<MatchStateEnvelopePayload> {
@@ -197,7 +248,7 @@ export class MatchApi {
   private async request<T>(
     path: string,
     method: 'GET' | 'POST',
-    payload?: Record<string, unknown>,
+    payload?: object,
     options?: { keepalive?: boolean },
   ): Promise<T> {
     const authSession = AuthSession.load();

@@ -23,6 +23,9 @@ const {
   normalizeAnimalStates,
   serializeAnimalStates,
   toAnimalStatePayload,
+  calculateAnimalScore,
+  calculateTerrainScore,
+  countRemainingEmptyCells,
   recruitAnimalFromMarket,
   placeAnimalOnBoard,
 } = require('./matchRules');
@@ -46,6 +49,9 @@ const MATCH_DISCONNECT_TIMEOUT_SECONDS = 8;
 const MATCH_CLEANUP_INTERVAL_MS = Number.parseInt(process.env.MATCH_CLEANUP_INTERVAL_MS ?? '5000', 10);
 const HEARTBEAT_WRITE_INTERVAL_MS = Number.parseInt(process.env.HEARTBEAT_WRITE_INTERVAL_MS ?? '3000', 10);
 const GRACEFUL_SHUTDOWN_TIMEOUT_MS = Number.parseInt(process.env.GRACEFUL_SHUTDOWN_TIMEOUT_MS ?? '10000', 10);
+const DEFAULT_AVATAR_TYPE = 'builtin';
+const DEFAULT_AVATAR_VALUE = 'default_mine_avatar';
+const LEGACY_DEFAULT_AVATAR_PATH = 'assets\\textures\\homepage-mine\\mine_avatar.png';
 const MATCH_GROUP_COUNT = 4;
 const MATCH_PIECES_PER_GROUP = 3;
 const TERRAIN_PIECE_COUNTS = {
@@ -135,6 +141,12 @@ function toMysqlDate(date) {
 }
 
 function buildSessionPayload(sessionRow, playerRow, isNewPlayer = false) {
+  const avatar = normalizeAvatarIdentity(
+    playerRow.avatar_type,
+    playerRow.avatar_value,
+    playerRow.avatar_path,
+  );
+
   return {
     player_id: playerRow.player_id,
     access_token: sessionRow.access_token,
@@ -145,6 +157,233 @@ function buildSessionPayload(sessionRow, playerRow, isNewPlayer = false) {
     platform: LOCAL_PLATFORM,
     account: playerRow.account_name,
     display_name: playerRow.display_name,
+    avatar_type: avatar.avatar_type,
+    avatar_value: avatar.avatar_value,
+  };
+}
+
+async function ensurePlayerProfileSchema() {
+  const requiredColumns = [
+    {
+      name: 'email',
+      definition: 'VARCHAR(128) NULL DEFAULT NULL',
+    },
+    {
+      name: 'region',
+      definition: 'VARCHAR(64) NULL DEFAULT NULL',
+    },
+    {
+      name: 'registration_date',
+      definition: 'DATETIME(3) NULL DEFAULT NULL',
+    },
+    {
+      name: 'avatar_type',
+      definition: `VARCHAR(32) NOT NULL DEFAULT '${DEFAULT_AVATAR_TYPE}'`,
+    },
+    {
+      name: 'avatar_value',
+      definition: `VARCHAR(255) NOT NULL DEFAULT '${DEFAULT_AVATAR_VALUE}'`,
+    },
+  ];
+
+  for (const column of requiredColumns) {
+    const [rows] = await pool.execute(
+      `SELECT 1
+         FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'player_profile'
+          AND COLUMN_NAME = ?
+        LIMIT 1`,
+      [column.name],
+    );
+
+    if (rows.length > 0) {
+      continue;
+    }
+
+    await pool.execute(
+      `ALTER TABLE player_profile
+         ADD COLUMN ${column.name} ${column.definition}`,
+    );
+  }
+
+  await pool.execute(
+    `UPDATE player_profile
+        SET registration_date = COALESCE(registration_date, CURRENT_TIMESTAMP(3))
+      WHERE registration_date IS NULL`,
+  );
+
+  const [legacyAvatarColumnRows] = await pool.execute(
+    `SELECT 1
+       FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'player_profile'
+        AND COLUMN_NAME = 'avatar_path'
+      LIMIT 1`,
+  );
+
+  if (legacyAvatarColumnRows.length > 0) {
+    await pool.execute(
+      `UPDATE player_profile
+          SET avatar_type = CASE
+                               WHEN avatar_type IS NULL OR TRIM(avatar_type) = ''
+                                 THEN CASE
+                                        WHEN avatar_path IS NULL OR TRIM(avatar_path) = '' THEN ?
+                                        WHEN REPLACE(TRIM(avatar_path), '/', '\\\\') = ? THEN ?
+                                        ELSE 'upload'
+                                      END
+                               ELSE avatar_type
+                             END,
+              avatar_value = CASE
+                                WHEN avatar_value IS NULL OR TRIM(avatar_value) = ''
+                                  THEN CASE
+                                         WHEN avatar_path IS NULL OR TRIM(avatar_path) = '' THEN ?
+                                         WHEN REPLACE(TRIM(avatar_path), '/', '\\\\') = ? THEN ?
+                                         ELSE TRIM(avatar_path)
+                                       END
+                                ELSE avatar_value
+                              END`,
+      [
+        DEFAULT_AVATAR_TYPE,
+        LEGACY_DEFAULT_AVATAR_PATH,
+        DEFAULT_AVATAR_TYPE,
+        DEFAULT_AVATAR_VALUE,
+        LEGACY_DEFAULT_AVATAR_PATH,
+        DEFAULT_AVATAR_VALUE,
+      ],
+    );
+  }
+
+  await pool.execute(
+    `UPDATE player_profile
+        SET avatar_type = COALESCE(NULLIF(TRIM(avatar_type), ''), ?),
+            avatar_value = COALESCE(NULLIF(TRIM(avatar_value), ''), ?)
+      WHERE avatar_type IS NULL
+         OR TRIM(avatar_type) = ''
+         OR avatar_value IS NULL
+         OR TRIM(avatar_value) = ''`,
+    [DEFAULT_AVATAR_TYPE, DEFAULT_AVATAR_VALUE],
+  );
+}
+
+function normalizeAvatarIdentity(avatarType, avatarValue, legacyAvatarPath = null) {
+  const normalizedAvatarType = String(avatarType ?? '').trim().toLowerCase();
+  const normalizedAvatarValue = String(avatarValue ?? '').trim();
+
+  if (normalizedAvatarType && normalizedAvatarValue) {
+    return {
+      avatar_type: normalizedAvatarType,
+      avatar_value: normalizedAvatarValue,
+    };
+  }
+
+  const normalizedLegacyPath = String(legacyAvatarPath ?? '')
+    .replace(/\//g, '\\')
+    .trim();
+
+  if (normalizedLegacyPath) {
+    return normalizedLegacyPath.toLowerCase() === LEGACY_DEFAULT_AVATAR_PATH.toLowerCase()
+      ? {
+        avatar_type: DEFAULT_AVATAR_TYPE,
+        avatar_value: DEFAULT_AVATAR_VALUE,
+      }
+      : {
+        avatar_type: 'upload',
+        avatar_value: normalizedLegacyPath,
+      };
+  }
+
+  return {
+    avatar_type: DEFAULT_AVATAR_TYPE,
+    avatar_value: DEFAULT_AVATAR_VALUE,
+  };
+}
+
+function normalizeDisplayName(displayName) {
+  return String(displayName ?? '').trim();
+}
+
+function normalizeEmail(email) {
+  return String(email ?? '').trim();
+}
+
+function normalizeRegion(region) {
+  return String(region ?? '').trim();
+}
+
+function validateDisplayName(displayName) {
+  if (!displayName) {
+    return '昵称不能为空。';
+  }
+
+  if (displayName.length > 8) {
+    return '昵称长度不能超过 8 个字符。';
+  }
+
+  return null;
+}
+
+function validateEmail(email) {
+  if (!email) {
+    return '邮箱不能为空。';
+  }
+
+  if (email.length > 32) {
+    return '邮箱长度不能超过 32 个字符。';
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return '邮箱格式不正确。';
+  }
+
+  return null;
+}
+
+function validateRegion(region) {
+  if (!region) {
+    return '地区不能为空。';
+  }
+
+  if (region.length > 64) {
+    return '地区长度不能超过 64 个字符。';
+  }
+
+  return null;
+}
+
+async function loadPlayerProfile(connection, playerId) {
+  const [rows] = await connection.execute(
+    `SELECT pa.player_id,
+            lac.account_name,
+            pp.display_name,
+            pp.email,
+            pp.region,
+            pp.avatar_type,
+            pp.avatar_value,
+            pp.registration_date,
+            pp.signature,
+            pr.gold_coin,
+            pr.gem,
+            pr.card_shard
+       FROM player_account pa
+       INNER JOIN local_account_credential lac
+               ON lac.player_id = pa.player_id
+       INNER JOIN player_profile pp
+               ON pp.player_id = pa.player_id
+       INNER JOIN player_resource pr
+               ON pr.player_id = pa.player_id
+      WHERE pa.player_id = ?`,
+    [playerId],
+  );
+
+  const profile = rows[0] ?? null;
+  if (!profile) {
+    return null;
+  }
+
+  return {
+    ...profile,
+    ...normalizeAvatarIdentity(profile.avatar_type, profile.avatar_value),
   };
 }
 
@@ -263,7 +502,9 @@ async function loadPlayerForAccount(connection, normalizedAccount) {
             lac.account_name,
             lac.password_salt,
             lac.password_hash,
-            pp.display_name
+            pp.display_name,
+            pp.avatar_type,
+            pp.avatar_value
        FROM local_account_credential lac
        INNER JOIN player_account pa
                ON pa.player_id = lac.player_id
@@ -738,6 +979,195 @@ async function tryMatchWaitingPlayers(connection, matchType) {
   return createMatchFromQueueEntries(connection, queueRows);
 }
 
+function resolveMatchResultType(finalScore, opponentFinalScore) {
+  if (finalScore > opponentFinalScore) {
+    return 'win';
+  }
+  if (finalScore < opponentFinalScore) {
+    return 'lose';
+  }
+  return 'draw';
+}
+
+async function loadSettlementPlayers(executor, matchId) {
+  const [rows] = await executor.execute(
+    `SELECT mp.player_id,
+            mp.seat_no,
+            mp.board_snapshot_json,
+            mp.candidate_card_json,
+            mp.ongoing_card_json,
+            profile.display_name,
+            profile.avatar_type,
+            profile.avatar_value,
+            account.account_name
+       FROM match_player mp
+       LEFT JOIN player_profile profile
+              ON profile.player_id = mp.player_id
+       LEFT JOIN local_account_credential account
+              ON account.player_id = mp.player_id
+      WHERE mp.match_id = ?
+      ORDER BY mp.seat_no ASC`,
+    [matchId],
+  );
+
+  return rows.map((row) => {
+    const boardSnapshot = normalizeBoardSnapshot(
+      parseJsonValue(row.board_snapshot_json),
+      row.player_id,
+      row.seat_no,
+    );
+    const animalState = normalizeAnimalStates(
+      parseJsonValue(row.candidate_card_json),
+      parseJsonValue(row.ongoing_card_json),
+    );
+    const terrainResult = calculateTerrainScore(boardSnapshot);
+    const animalScore = calculateAnimalScore(animalState);
+
+    return {
+      player_id: row.player_id,
+      seat_no: row.seat_no,
+      account: row.account_name,
+      display_name: row.display_name,
+      ...normalizeAvatarIdentity(row.avatar_type, row.avatar_value),
+      board_snapshot: boardSnapshot,
+      remaining_empty_cells: countRemainingEmptyCells(boardSnapshot),
+      terrain_score: terrainResult.total,
+      terrain_breakdown: terrainResult.breakdown,
+      animal_score: animalScore,
+      final_score: terrainResult.total + animalScore,
+    };
+  });
+}
+
+async function settleMatch(connection, roomSummary, options = {}) {
+  const players = await loadSettlementPlayers(connection, roomSummary.match_id);
+  if (players.length === 0) {
+    return {
+      winnerPlayerId: null,
+      players: [],
+    };
+  }
+
+  const maxScore = Math.max(...players.map((player) => player.final_score));
+  const winners = players.filter((player) => player.final_score === maxScore);
+  const winnerPlayerId = winners.length === 1 ? winners[0].player_id : null;
+
+  const playerResults = players.map((player) => {
+    const opponentScores = players
+      .filter((candidate) => candidate.player_id !== player.player_id)
+      .map((candidate) => candidate.final_score);
+    const bestOpponentScore = opponentScores.length > 0
+      ? Math.max(...opponentScores)
+      : player.final_score;
+
+    return {
+      ...player,
+      result_type: resolveMatchResultType(player.final_score, bestOpponentScore),
+    };
+  });
+
+  for (const player of playerResults) {
+    await connection.execute(
+      `UPDATE match_player
+          SET terrain_score = ?,
+              animal_score = ?,
+              final_score = ?,
+              result_type = ?
+        WHERE match_id = ?
+          AND player_id = ?`,
+      [
+        player.terrain_score,
+        player.animal_score,
+        player.final_score,
+        player.result_type,
+        roomSummary.match_id,
+        player.player_id,
+      ],
+    );
+  }
+
+  await connection.execute(
+    `UPDATE match_room
+        SET room_status = 3,
+            step_status = 'match_finished',
+            turn_player_id = NULL,
+            turn_deadline_at = NULL,
+            winner_player_id = ?,
+            terrain_market_snapshot = ?,
+            terrain_bag_snapshot = ?,
+            terrain_bag_remaining = ?,
+            end_reason = ?,
+            end_time = CURRENT_TIMESTAMP(3),
+            state_version = state_version + 1,
+            last_action_at = CURRENT_TIMESTAMP(3)
+      WHERE match_id = ?`,
+    [
+      winnerPlayerId,
+      JSON.stringify(options.terrainMarketSnapshot ?? null),
+      JSON.stringify(options.terrainBagSnapshot ?? []),
+      Array.isArray(options.terrainBagSnapshot) ? options.terrainBagSnapshot.length : 0,
+      options.endReason ?? roomSummary.end_reason ?? 'normal_finish',
+      roomSummary.match_id,
+    ],
+  );
+
+  const resultPayload = {
+    match_id: roomSummary.match_id,
+    match_type: roomSummary.match_type,
+    winner_player_id: winnerPlayerId,
+    end_reason: options.endReason ?? roomSummary.end_reason ?? 'normal_finish',
+    end_trigger_type: roomSummary.end_trigger_type ?? null,
+    end_trigger_turn_no: roomSummary.end_trigger_turn_no ?? roomSummary.turn_no,
+    final_round_player_id: roomSummary.final_round_player_id ?? null,
+    players: playerResults.map((player) => ({
+      player_id: player.player_id,
+      seat_no: player.seat_no,
+      account: player.account,
+      display_name: player.display_name,
+      avatar_type: player.avatar_type,
+      avatar_value: player.avatar_value,
+      remaining_empty_cells: player.remaining_empty_cells,
+      terrain_score: player.terrain_score,
+      terrain_breakdown: player.terrain_breakdown,
+      animal_score: player.animal_score,
+      final_score: player.final_score,
+      result_type: player.result_type,
+    })),
+  };
+
+  await connection.execute(
+    `INSERT INTO match_result (
+        match_id,
+        winner_player_id,
+        end_reason,
+        rank_affected,
+        result_json,
+        settle_version,
+        is_verified
+      ) VALUES (?, ?, ?, ?, ?, 'v1', 1)
+      ON DUPLICATE KEY UPDATE
+        winner_player_id = VALUES(winner_player_id),
+        end_reason = VALUES(end_reason),
+        rank_affected = VALUES(rank_affected),
+        result_json = VALUES(result_json),
+        settle_version = VALUES(settle_version),
+        is_verified = VALUES(is_verified),
+        updated_at = CURRENT_TIMESTAMP(3)`,
+    [
+      roomSummary.match_id,
+      winnerPlayerId,
+      options.endReason ?? roomSummary.end_reason ?? 'normal_finish',
+      roomSummary.match_type === 'ranked' ? 1 : 0,
+      JSON.stringify(resultPayload),
+    ],
+  );
+
+  return {
+    winnerPlayerId,
+    players: playerResults,
+  };
+}
+
 async function loadMatchSummary(executor, matchId, playerId) {
   const [rows] = await executor.execute(
     `SELECT mr.match_id,
@@ -748,22 +1178,40 @@ async function loadMatchSummary(executor, matchId, playerId) {
             mr.state_version,
             mr.turn_player_id,
             mr.turn_deadline_at,
+            mr.winner_player_id,
+            mr.end_trigger_type,
+            mr.end_trigger_turn_no,
+            mr.final_round_player_id,
+            mr.end_reason,
+            mr.end_time,
             mr.terrain_market_snapshot,
             mr.terrain_bag_remaining,
             mp.seat_no,
             mp.board_snapshot_json,
             mp.candidate_card_json,
             mp.ongoing_card_json,
+            my_profile.avatar_type AS my_avatar_type,
+            my_profile.avatar_value AS my_avatar_value,
+            mp.terrain_score AS my_terrain_score,
+            mp.final_score AS my_final_score,
+            mp.result_type AS my_result_type,
             opponent.board_public_snapshot_json AS opponent_board_public_snapshot_json,
             opponent.candidate_card_json AS opponent_candidate_card_json,
             opponent.ongoing_card_json AS opponent_ongoing_card_json,
+            opponent.terrain_score AS opponent_terrain_score,
+            opponent.final_score AS opponent_final_score,
+            opponent.result_type AS opponent_result_type,
             opponent.player_id AS opponent_player_id,
             opponent_profile.display_name AS opponent_display_name,
+            opponent_profile.avatar_type AS opponent_avatar_type,
+            opponent_profile.avatar_value AS opponent_avatar_value,
             opponent_account.account_name AS opponent_account
        FROM match_room mr
        INNER JOIN match_player mp
                ON mp.match_id = mr.match_id
               AND mp.player_id = ?
+       INNER JOIN player_profile my_profile
+               ON my_profile.player_id = mp.player_id
        LEFT JOIN match_player opponent
               ON opponent.match_id = mr.match_id
              AND opponent.player_id <> mp.player_id
@@ -857,6 +1305,10 @@ async function loadMatchSummary(executor, matchId, playerId) {
     }
     : null;
 
+  const myScore = calculateAnimalScore(animalState);
+  const opponentScore = opponentAnimalState ? calculateAnimalScore(opponentAnimalState) : 0;
+  const myAvatar = normalizeAvatarIdentity(row.my_avatar_type, row.my_avatar_value);
+
   return {
     match_id: row.match_id,
     match_type: row.match_type,
@@ -871,6 +1323,22 @@ async function loadMatchSummary(executor, matchId, playerId) {
     seat_no: row.seat_no,
     my_player_id: playerId,
     is_my_turn: row.turn_player_id === playerId,
+    winner_player_id: row.winner_player_id,
+    end_trigger_type: row.end_trigger_type,
+    end_trigger_turn_no: row.end_trigger_turn_no,
+    final_round_player_id: row.final_round_player_id,
+    end_reason: row.end_reason,
+    end_time: row.end_time,
+    my_score: myScore,
+    opponent_score: opponentScore,
+    my_terrain_score: row.my_terrain_score ?? 0,
+    opponent_terrain_score: row.opponent_terrain_score ?? 0,
+    my_final_score: row.my_final_score ?? 0,
+    opponent_final_score: row.opponent_final_score ?? 0,
+    my_result_type: row.my_result_type ?? 'pending',
+    opponent_result_type: row.opponent_result_type ?? 'pending',
+    my_avatar_type: myAvatar.avatar_type,
+    my_avatar_value: myAvatar.avatar_value,
     my_board_snapshot: myBoardSnapshot,
     opponent_board_public_snapshot: opponentBoardPublicSnapshot,
     my_animal_state: toAnimalStatePayload(animalState, row.turn_no),
@@ -879,6 +1347,7 @@ async function loadMatchSummary(executor, matchId, playerId) {
       player_id: row.opponent_player_id,
       account: row.opponent_account,
       display_name: row.opponent_display_name,
+      ...normalizeAvatarIdentity(row.opponent_avatar_type, row.opponent_avatar_value),
     } : null,
   };
 }
@@ -974,7 +1443,9 @@ async function authMiddleware(req, res, next) {
               ps.session_status,
               ps.expire_at,
               lac.account_name,
-              pp.display_name
+              pp.display_name,
+              pp.avatar_type,
+              pp.avatar_value
          FROM player_session ps
          INNER JOIN player_account pa
                  ON pa.player_id = ps.player_id
@@ -1002,6 +1473,8 @@ async function authMiddleware(req, res, next) {
       playerId: session.player_id,
       accountName: session.account_name,
       displayName: session.display_name,
+      avatarType: session.avatar_type ?? DEFAULT_AVATAR_TYPE,
+      avatarValue: session.avatar_value ?? DEFAULT_AVATAR_VALUE,
       accessToken,
     };
     next();
@@ -1082,9 +1555,12 @@ app.post('/api/v1/auth/register', authRateLimiter, async (req, res) => {
     await connection.execute(
       `INSERT INTO player_profile (
           player_id,
-          display_name
-        ) VALUES (?, ?)`,
-      [playerId, normalizedAccount],
+          display_name,
+          avatar_type,
+          avatar_value,
+          registration_date
+        ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP(3))`,
+      [playerId, normalizedAccount, DEFAULT_AVATAR_TYPE, DEFAULT_AVATAR_VALUE],
     );
 
     await connection.execute(
@@ -1116,6 +1592,8 @@ app.post('/api/v1/auth/register', authRateLimiter, async (req, res) => {
           player_id: playerId,
           account_name: normalizedAccount,
           display_name: normalizedAccount,
+          avatar_type: DEFAULT_AVATAR_TYPE,
+          avatar_value: DEFAULT_AVATAR_VALUE,
         },
         true,
       ),
@@ -1185,28 +1663,27 @@ app.post('/api/v1/auth/login', authRateLimiter, async (req, res) => {
   }
 });
 
-app.get('/api/v1/player/profile', authMiddleware, async (req, res) => {
+app.post('/api/v1/auth/logout', authMiddleware, async (req, res) => {
   try {
-    const [rows] = await pool.execute(
-      `SELECT pa.player_id,
-              lac.account_name,
-              pp.display_name,
-              pp.signature,
-              pr.gold_coin,
-              pr.gem,
-              pr.card_shard
-         FROM player_account pa
-         INNER JOIN local_account_credential lac
-                 ON lac.player_id = pa.player_id
-         INNER JOIN player_profile pp
-                 ON pp.player_id = pa.player_id
-         INNER JOIN player_resource pr
-                 ON pr.player_id = pa.player_id
-        WHERE pa.player_id = ?`,
-      [req.auth.playerId],
+    await pool.execute(
+      `UPDATE player_session
+          SET session_status = 2,
+              updated_at = CURRENT_TIMESTAMP(3)
+        WHERE access_token = ?
+          AND session_status = 1`,
+      [req.auth.accessToken],
     );
 
-    const profile = rows[0];
+    ok(res, {});
+  } catch (error) {
+    console.error('[logout] Failed to logout current session.', error);
+    fail(res, 1999, '退出登录失败。', 500);
+  }
+});
+
+app.get('/api/v1/player/profile', authMiddleware, async (req, res) => {
+  try {
+    const profile = await loadPlayerProfile(pool, req.auth.playerId);
     if (!profile) {
       fail(res, 1010, '玩家资料不存在。', 404);
       return;
@@ -1216,6 +1693,103 @@ app.get('/api/v1/player/profile', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('[profile] Failed to query player profile.', error);
     fail(res, 1999, '读取玩家资料失败。', 500);
+  }
+});
+
+app.post('/api/v1/player/profile/update', authMiddleware, async (req, res) => {
+  const nextDisplayName = req.body.display_name !== undefined
+    ? normalizeDisplayName(req.body.display_name)
+    : null;
+  const nextEmail = req.body.email !== undefined
+    ? normalizeEmail(req.body.email)
+    : null;
+  const nextRegion = req.body.region !== undefined
+    ? normalizeRegion(req.body.region)
+    : null;
+
+  const displayNameValidation = nextDisplayName !== null
+    ? validateDisplayName(nextDisplayName)
+    : null;
+  if (displayNameValidation) {
+    fail(res, 1011, displayNameValidation);
+    return;
+  }
+
+  const emailValidation = nextEmail !== null
+    ? validateEmail(nextEmail)
+    : null;
+  if (emailValidation) {
+    fail(res, 1012, emailValidation);
+    return;
+  }
+
+  const regionValidation = nextRegion !== null
+    ? validateRegion(nextRegion)
+    : null;
+  if (regionValidation) {
+    fail(res, 1013, regionValidation);
+    return;
+  }
+
+  if (nextDisplayName === null && nextEmail === null && nextRegion === null) {
+    fail(res, 1014, '没有可更新的资料字段。');
+    return;
+  }
+
+  const updates = [];
+  const values = [];
+
+  if (nextDisplayName !== null) {
+    updates.push('display_name = ?');
+    values.push(nextDisplayName);
+  }
+  if (nextEmail !== null) {
+    updates.push('email = ?');
+    values.push(nextEmail);
+  }
+  if (nextRegion !== null) {
+    updates.push('region = ?');
+    values.push(nextRegion);
+  }
+
+  values.push(req.auth.playerId);
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.execute(
+      `UPDATE player_profile
+          SET ${updates.join(', ')},
+              updated_at = CURRENT_TIMESTAMP(3)
+        WHERE player_id = ?`,
+      values,
+    );
+
+    if (nextDisplayName !== null) {
+      await connection.execute(
+        `UPDATE player_account
+            SET nickname = ?,
+                updated_at = CURRENT_TIMESTAMP(3)
+          WHERE player_id = ?`,
+        [nextDisplayName, req.auth.playerId],
+      );
+    }
+
+    const profile = await loadPlayerProfile(connection, req.auth.playerId);
+    await connection.commit();
+
+    if (!profile) {
+      fail(res, 1010, '玩家资料不存在。', 404);
+      return;
+    }
+
+    ok(res, profile, 'profile updated');
+  } catch (error) {
+    await connection.rollback();
+    console.error('[profile/update] Failed to update player profile.', error);
+    fail(res, 1999, '更新玩家资料失败。', 500);
+  } finally {
+    connection.release();
   }
 });
 
@@ -1817,7 +2391,7 @@ app.post('/api/v1/matches/:matchId/place-animal', authMiddleware, matchActionRat
         JSON.stringify(serializedAnimalState.candidate),
         JSON.stringify(serializedAnimalState.ongoing),
         Object.values(animalState.runtime_states).reduce((sum, runtimeState) => sum + runtimeState.placed_anchors.length, 0),
-        Object.values(animalState.runtime_states).reduce((sum, runtimeState) => sum + runtimeState.placed_anchors.length, 0),
+        calculateAnimalScore(animalState),
         matchId,
         req.auth.playerId,
       ],
@@ -1859,9 +2433,14 @@ app.post('/api/v1/matches/:matchId/end-turn', authMiddleware, matchActionRateLim
 
     const [rows] = await connection.execute(
       `SELECT mr.match_id,
+              mr.match_type,
               mr.room_status,
               mr.turn_no,
               mr.turn_player_id,
+              mr.end_trigger_type,
+              mr.end_trigger_turn_no,
+              mr.final_round_player_id,
+              mr.end_reason,
               mr.terrain_market_snapshot,
               mr.terrain_bag_snapshot,
               mp.board_snapshot_json,
@@ -1911,6 +2490,7 @@ app.post('/api/v1/matches/:matchId/end-turn', authMiddleware, matchActionRateLim
       req.auth.playerId,
       room.seat_no,
     );
+    const isFinalRoundTurn = !!room.end_trigger_type && room.final_round_player_id === req.auth.playerId;
 
     if (activeSlotIndex === null || activeSlotIndex < 0) {
       await connection.rollback();
@@ -1937,15 +2517,22 @@ app.post('/api/v1/matches/:matchId/end-turn', authMiddleware, matchActionRateLim
       }
     }
 
-    if (activeSlotIndex !== null && activeSlotIndex >= 0 && activeSlotIndex < marketSnapshot.slot_groups.length) {
+    if (
+      !isFinalRoundTurn
+      && activeSlotIndex !== null
+      && activeSlotIndex >= 0
+      && activeSlotIndex < marketSnapshot.slot_groups.length
+    ) {
       marketSnapshot.slot_groups[activeSlotIndex] = drawTerrainPiecesFromBag(bagSnapshot, MATCH_PIECES_PER_GROUP);
     }
 
     marketSnapshot.active_slot_index = null;
     marketSnapshot.remaining_piece_indices = [];
 
+    const remainingEmptyCells = countRemainingEmptyCells(boardSnapshot);
     const nextPlayerId = room.opponent_player_id ?? req.auth.playerId;
     const nextDeadlineAt = new Date(Date.now() + DEFAULT_TURN_SECONDS * 1000);
+    const shouldTriggerFinalRound = !room.end_trigger_type && remainingEmptyCells <= 2;
 
     await connection.execute(
       `UPDATE match_player
@@ -1961,28 +2548,50 @@ app.post('/api/v1/matches/:matchId/end-turn', authMiddleware, matchActionRateLim
       ],
     );
 
-    await connection.execute(
-      `UPDATE match_room
-          SET turn_no = ?,
-              turn_player_id = ?,
-              turn_deadline_at = ?,
-              terrain_market_snapshot = ?,
-              terrain_bag_snapshot = ?,
-              terrain_bag_remaining = ?,
-              step_status = 'pick_terrain_group',
-              state_version = state_version + 1,
-              last_action_at = CURRENT_TIMESTAMP(3)
-        WHERE match_id = ?`,
-      [
-        room.turn_no + 1,
-        nextPlayerId,
-        toMysqlDate(nextDeadlineAt),
-        JSON.stringify(marketSnapshot),
-        JSON.stringify(bagSnapshot),
-        bagSnapshot.length,
-        matchId,
-      ],
-    );
+    if (isFinalRoundTurn) {
+      await settleMatch(connection, {
+        match_id: room.match_id,
+        match_type: room.match_type,
+        turn_no: room.turn_no,
+        end_trigger_type: room.end_trigger_type,
+        end_trigger_turn_no: room.end_trigger_turn_no,
+        final_round_player_id: room.final_round_player_id,
+        end_reason: room.end_reason,
+      }, {
+        endReason: 'normal_finish',
+        terrainMarketSnapshot: marketSnapshot,
+        terrainBagSnapshot: bagSnapshot,
+      });
+    } else {
+      await connection.execute(
+        `UPDATE match_room
+            SET turn_no = ?,
+                turn_player_id = ?,
+                turn_deadline_at = ?,
+                terrain_market_snapshot = ?,
+                terrain_bag_snapshot = ?,
+                terrain_bag_remaining = ?,
+                end_trigger_type = ?,
+                end_trigger_turn_no = ?,
+                final_round_player_id = ?,
+                step_status = 'pick_terrain_group',
+                state_version = state_version + 1,
+                last_action_at = CURRENT_TIMESTAMP(3)
+          WHERE match_id = ?`,
+        [
+          room.turn_no + 1,
+          nextPlayerId,
+          toMysqlDate(nextDeadlineAt),
+          JSON.stringify(marketSnapshot),
+          JSON.stringify(bagSnapshot),
+          bagSnapshot.length,
+          shouldTriggerFinalRound ? 'remaining_empty_cells_lte_2' : room.end_trigger_type,
+          shouldTriggerFinalRound ? room.turn_no : room.end_trigger_turn_no,
+          shouldTriggerFinalRound ? nextPlayerId : room.final_round_player_id,
+          matchId,
+        ],
+      );
+    }
 
     const matchState = await loadMatchStateForPlayer(connection, matchId, req.auth.playerId);
     await connection.commit();
@@ -2048,16 +2657,25 @@ app.post('/api/v1/matches/:matchId/leave', authMiddleware, matchActionRateLimite
   }
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`[arkstory-auth-server] Listening on http://127.0.0.1:${PORT}`);
-});
+async function startServer() {
+  await ensurePlayerProfileSchema();
 
-matchCleanupScheduler.start();
+  const server = app.listen(PORT, () => {
+    console.log(`[arkstory-auth-server] Listening on http://127.0.0.1:${PORT}`);
+  });
 
-registerProcessLifecycle({
-  server,
-  pool,
-  runtimeState,
-  cleanupScheduler: matchCleanupScheduler,
-  shutdownTimeoutMs: GRACEFUL_SHUTDOWN_TIMEOUT_MS,
+  matchCleanupScheduler.start();
+
+  registerProcessLifecycle({
+    server,
+    pool,
+    runtimeState,
+    cleanupScheduler: matchCleanupScheduler,
+    shutdownTimeoutMs: GRACEFUL_SHUTDOWN_TIMEOUT_MS,
+  });
+}
+
+void startServer().catch((error) => {
+  console.error('[startup] Failed to start auth server.', error);
+  process.exit(1);
 });
