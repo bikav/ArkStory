@@ -44,15 +44,14 @@ export interface TerrainPlacementValidationResult {
 const EMPTY_STACK: TerrainPieceType[] = [];
 const MAX_STACK_HEIGHT = 3;
 const MAX_STUMP_LAYERS = 2;
-const MAX_BUILDING_LAYERS = 2;
 
 export const TERRAIN_PLACEMENT_RULES: Record<TerrainPieceType, TerrainPiecePlacementRule> = {
   [TerrainPieceType.Building]: {
     pieceType: TerrainPieceType.Building,
     canPlaceOnEmpty: true,
-    maxResultingHeight: MAX_STACK_HEIGHT,
+    maxResultingHeight: 2,
     allowedSupports: [TerrainPieceType.Building, TerrainPieceType.Mountain, TerrainPieceType.Stump],
-    summary: '建筑可直接放在空格作为地基，也可叠在建筑/山脉/树桩上；红色建筑层数最多 2 层。',
+    summary: '建筑可直接放在空格作为一级建筑，也可放在单层建筑、山脉或树桩上形成二级建筑。',
   },
   [TerrainPieceType.Field]: {
     pieceType: TerrainPieceType.Field,
@@ -281,26 +280,20 @@ function evaluatePlacement(
       }
 
       if (
-        topPiece !== TerrainPieceType.Building
-        && topPiece !== TerrainPieceType.Mountain
-        && topPiece !== TerrainPieceType.Stump
+        currentStack.length === 1
+        && (
+          topPiece === TerrainPieceType.Building
+          || topPiece === TerrainPieceType.Mountain
+          || topPiece === TerrainPieceType.Stump
+        )
       ) {
-        return rejectPlacement(currentStack, 'Building can only be placed on top of building, mountain, or stump.');
+        return acceptPlacement(currentStack, pieceType);
       }
 
-      if (
-        (topPiece === TerrainPieceType.Mountain || topPiece === TerrainPieceType.Stump)
-        && currentStack.length > 1
-      ) {
-        return rejectPlacement(currentStack, 'Building can only use a single-layer mountain or stump as its base.');
-      }
-
-      const buildingLayerCount = currentStack.filter((value) => value === TerrainPieceType.Building).length;
-      if (buildingLayerCount >= MAX_BUILDING_LAYERS) {
-        return rejectPlacement(currentStack, `Building layers are capped at ${MAX_BUILDING_LAYERS}.`);
-      }
-
-      return acceptPlacement(currentStack, pieceType);
+      return rejectPlacement(
+        currentStack,
+        'Building can only be placed on a single-layer building, mountain, or stump.',
+      );
     }
 
     default:

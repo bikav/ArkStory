@@ -1667,7 +1667,8 @@ app.post('/api/v1/auth/logout', authMiddleware, async (req, res) => {
   try {
     await pool.execute(
       `UPDATE player_session
-          SET session_status = 2,
+          SET session_status = 0,
+              logout_at = CURRENT_TIMESTAMP(3),
               updated_at = CURRENT_TIMESTAMP(3)
         WHERE access_token = ?
           AND session_status = 1`,

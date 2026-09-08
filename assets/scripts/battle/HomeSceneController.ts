@@ -16,6 +16,7 @@ import {
   Toggle,
   UITransform,
 } from 'cc';
+import { installAppResumeHandler } from '../AppLifecycle';
 import { AuthSession } from '../auth/AuthSession';
 import { BattleSession } from './BattleSession';
 import {
@@ -93,6 +94,7 @@ const PROFILE_REGISTRATION_PLACEHOLDER = '--';
 @ccclass('HomeSceneController')
 export class HomeSceneController extends Component {
   private readonly matchApi = new MatchApi();
+  private disposeAppResumeHandler: (() => void) | null = null;
 
   private matchButton: Button | null = null;
   private statusLabel: Label | null = null;
@@ -128,6 +130,7 @@ export class HomeSceneController extends Component {
   private currentState: MatchmakingStatePayload | null = null;
   private submitting = false;
   private enteringBattle = false;
+  private exiting = false;
   private messageToggleEnabled = true;
   private soundToggleEnabled = true;
   private startMatchButtonSpriteFrame: SpriteFrame | null = null;
@@ -136,6 +139,7 @@ export class HomeSceneController extends Component {
   private toggleCloseSpriteFrame: SpriteFrame | null = null;
 
   onLoad() {
+    this.disposeAppResumeHandler = installAppResumeHandler();
     this.collectNavigationButtons();
     this.collectHomePages();
     this.collectProfilePageNodes();
@@ -168,6 +172,8 @@ export class HomeSceneController extends Component {
   }
 
   onDestroy() {
+    this.disposeAppResumeHandler?.();
+    this.disposeAppResumeHandler = null;
     this.unschedule(this.pollMatchmakingStatus);
 
     const matchButtonNode = this.matchButton?.node;
@@ -183,17 +189,51 @@ export class HomeSceneController extends Component {
       buttonNode.off(Button.EventType.CLICK, this.onNavigationButtonClicked, this);
     }
 
-    this.nicknameButton?.node.off(Button.EventType.CLICK, this.onNicknameButtonClicked, this);
-    this.emailButton?.node.off(Button.EventType.CLICK, this.onEmailButtonClicked, this);
-    this.regionButton?.node.off(Button.EventType.CLICK, this.onRegionButtonClicked, this);
-    this.exitButton?.node.off(Button.EventType.CLICK, this.onExitButtonClicked, this);
-    this.messageToggleButton?.node.off(Button.EventType.CLICK, this.onMessageToggleClicked, this);
-    this.soundToggleButton?.node.off(Button.EventType.CLICK, this.onSoundToggleClicked, this);
-    this.nicknameEditBox?.node.off(EditBox.EventType.EDITING_DID_ENDED, this.onNicknameEditFinished, this);
-    this.nicknameEditBox?.node.off(EditBox.EventType.EDITING_RETURN, this.onNicknameEditFinished, this);
-    this.emailEditBox?.node.off(EditBox.EventType.EDITING_DID_ENDED, this.onEmailEditFinished, this);
-    this.emailEditBox?.node.off(EditBox.EventType.EDITING_RETURN, this.onEmailEditFinished, this);
-    this.regionMenuOverlay?.off(Node.EventType.TOUCH_END, this.onRegionOverlayTouched, this);
+    const nicknameButtonNode = this.nicknameButton?.node;
+    if (nicknameButtonNode?.isValid) {
+      nicknameButtonNode.off(Button.EventType.CLICK, this.onNicknameButtonClicked, this);
+    }
+
+    const emailButtonNode = this.emailButton?.node;
+    if (emailButtonNode?.isValid) {
+      emailButtonNode.off(Button.EventType.CLICK, this.onEmailButtonClicked, this);
+    }
+
+    const regionButtonNode = this.regionButton?.node;
+    if (regionButtonNode?.isValid) {
+      regionButtonNode.off(Button.EventType.CLICK, this.onRegionButtonClicked, this);
+    }
+
+    const exitButtonNode = this.exitButton?.node;
+    if (exitButtonNode?.isValid) {
+      exitButtonNode.off(Button.EventType.CLICK, this.onExitButtonClicked, this);
+    }
+
+    const messageToggleButtonNode = this.messageToggleButton?.node;
+    if (messageToggleButtonNode?.isValid) {
+      messageToggleButtonNode.off(Button.EventType.CLICK, this.onMessageToggleClicked, this);
+    }
+
+    const soundToggleButtonNode = this.soundToggleButton?.node;
+    if (soundToggleButtonNode?.isValid) {
+      soundToggleButtonNode.off(Button.EventType.CLICK, this.onSoundToggleClicked, this);
+    }
+
+    const nicknameEditBoxNode = this.nicknameEditBox?.node;
+    if (nicknameEditBoxNode?.isValid) {
+      nicknameEditBoxNode.off(EditBox.EventType.EDITING_DID_ENDED, this.onNicknameEditFinished, this);
+      nicknameEditBoxNode.off(EditBox.EventType.EDITING_RETURN, this.onNicknameEditFinished, this);
+    }
+
+    const emailEditBoxNode = this.emailEditBox?.node;
+    if (emailEditBoxNode?.isValid) {
+      emailEditBoxNode.off(EditBox.EventType.EDITING_DID_ENDED, this.onEmailEditFinished, this);
+      emailEditBoxNode.off(EditBox.EventType.EDITING_RETURN, this.onEmailEditFinished, this);
+    }
+
+    if (this.regionMenuOverlay?.isValid) {
+      this.regionMenuOverlay.off(Node.EventType.TOUCH_END, this.onRegionOverlayTouched, this);
+    }
   }
 
   private async initializeHomeScene() {
@@ -562,21 +602,40 @@ export class HomeSceneController extends Component {
     this.toggleRegionMenu(true);
   }
 
-  private async onExitButtonClicked() {
+  private onExitButtonClicked() {
+    if (this.exiting) {
+      return;
+    }
+
+    this.exiting = true;
+    if (this.exitButton) {
+      this.exitButton.interactable = false;
+    }
     this.unschedule(this.pollMatchmakingStatus);
+    this.currentState = null;
+    this.profileData = null;
+    this.activeProfileEdit = null;
 
     try {
-      await this.matchApi.logout();
+      const accessToken = AuthSession.load()?.access_token ?? '';
+      AuthSession.queueLogout(accessToken);
     } catch (error) {
-      console.warn('[HomeSceneController] Failed to logout from backend session.', error);
-    } finally {
-      this.currentState = null;
-      this.profileData = null;
-      this.activeProfileEdit = null;
-      BattleSession.clear();
-      AuthSession.clear();
-      director.loadScene('LoginScene');
+      console.warn('[HomeSceneController] Failed to queue logout report.', error);
     }
+
+    try {
+      BattleSession.clear();
+    } catch (error) {
+      console.warn('[HomeSceneController] Failed to clear battle session.', error);
+    }
+
+    try {
+      AuthSession.clear();
+    } catch (error) {
+      console.warn('[HomeSceneController] Failed to clear auth session.', error);
+    }
+
+    director.loadScene('LoginScene');
   }
 
   private onMessageToggleClicked() {

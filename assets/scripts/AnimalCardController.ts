@@ -83,12 +83,14 @@ export class AnimalCardController extends Component {
   onDestroy() {
     if (this.boardController) {
       this.boardController.setAnimalPlacementListener(null);
-      this.boardController.setPendingAnimalCard(null);
     }
 
-    if (this.closeButtonNode) {
+    if (this.closeButtonNode?.isValid) {
       this.closeButtonNode.off(Button.EventType.CLICK, this.onCloseOverlayClicked, this);
     }
+
+    this.overlayVisibilityListener = null;
+    this.boardController = null;
   }
 
   public initialize(boardController: TerrainBoardController) {

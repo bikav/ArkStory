@@ -1,4 +1,5 @@
-import { _decorator, assetManager, AssetManager, Button, Color, Component, director, EventTouch, Label, Node, Sprite, SpriteFrame, UITransform, sys } from 'cc';
+import { _decorator, assetManager, AssetManager, Button, Color, Component, director, Label, Node, Sprite, SpriteFrame, UITransform, sys } from 'cc';
+import { installAppResumeHandler } from '../AppLifecycle';
 import { AuthSession } from '../auth/AuthSession';
 import { TerrainDraftController } from '../TerrainDraftController';
 import { BattleSession } from './BattleSession';
@@ -22,6 +23,7 @@ const DEFAULT_AVATAR_SPRITE_FRAME_UUID = '6ce94a50-35ee-4b2c-bdba-1b53e34bb414@f
 @ccclass('BattleSceneController')
 export class BattleSceneController extends Component {
   private readonly matchApi = new MatchApi();
+  private disposeAppResumeHandler: (() => void) | null = null;
 
   private terrainDraftController: TerrainDraftController | null = null;
   private matchId: number | null = null;
@@ -31,6 +33,8 @@ export class BattleSceneController extends Component {
   private switchChessboardButtonLabel: Label | null = null;
   private isPolling = false;
   private leaveSubmitted = false;
+  private destroyed = false;
+  private returningHome = false;
   private lastKnownStateVersion = 0;
   private settlementBgNode: Node | null = null;
   private settlementResultSprite: Sprite | null = null;
@@ -54,6 +58,7 @@ export class BattleSceneController extends Component {
   };
 
   onLoad() {
+    this.disposeAppResumeHandler = installAppResumeHandler();
     this.terrainDraftController = this.getComponent(TerrainDraftController);
 
     const authSession = AuthSession.load();
@@ -95,6 +100,9 @@ export class BattleSceneController extends Component {
   }
 
   onDestroy() {
+    this.destroyed = true;
+    this.disposeAppResumeHandler?.();
+    this.disposeAppResumeHandler = null;
     this.unschedule(this.pollMatchState);
     if (sys.isBrowser) {
       globalThis.removeEventListener('pagehide', this.handlePageHide);
@@ -106,7 +114,6 @@ export class BattleSceneController extends Component {
     }
     if (this.settlementReturnButtonNode?.isValid) {
       this.settlementReturnButtonNode.off(Button.EventType.CLICK, this.onReturnHomeButtonClicked, this);
-      this.settlementReturnButtonNode.off(Node.EventType.TOUCH_END, this.onReturnHomeButtonTouched, this);
     }
     void this.leaveCurrentMatch('scene_destroy');
   }
@@ -114,9 +121,15 @@ export class BattleSceneController extends Component {
   private async loadInitialState() {
     try {
       const stateEnvelope = await this.matchApi.getMatchState(this.matchId!);
+      if (this.destroyed || !this.isValid) {
+        return;
+      }
       this.applyMatchStateEnvelope(stateEnvelope);
       this.schedule(this.pollMatchState, 1);
     } catch (error) {
+      if (this.destroyed || !this.isValid) {
+        return;
+      }
       console.error('[BattleSceneController] Failed to load initial match state.', error);
       BattleSession.clear();
       director.loadScene('HomeScene');
@@ -132,8 +145,14 @@ export class BattleSceneController extends Component {
 
     try {
       const stateEnvelope = await this.matchApi.getMatchState(this.matchId, this.lastKnownStateVersion);
+      if (this.destroyed || !this.isValid) {
+        return;
+      }
       this.applyMatchStateEnvelope(stateEnvelope);
     } catch (error) {
+      if (this.destroyed || !this.isValid) {
+        return;
+      }
       console.error('[BattleSceneController] Failed to poll match state.', error);
       if (error instanceof Error && /未找到对应对局|读取对局状态失败|登录态已失效/.test(error.message)) {
         BattleSession.clear();
@@ -264,10 +283,19 @@ export class BattleSceneController extends Component {
       return;
     }
 
+    this.unschedule(this.pollMatchState);
+
     try {
       await this.ensureSettlementUi();
     } catch (error) {
+      if (this.destroyed || !this.isValid) {
+        return;
+      }
       console.error('[BattleSceneController] Failed to prepare settlement UI.', error);
+    }
+
+    if (this.destroyed || !this.isValid) {
+      return;
     }
 
     this.applySettlementState(state);
@@ -372,7 +400,6 @@ export class BattleSceneController extends Component {
     const returnButton = returnButtonNode.addComponent(Button);
     returnButton.transition = Button.Transition.NONE;
     returnButtonNode.on(Button.EventType.CLICK, this.onReturnHomeButtonClicked, this);
-    returnButtonNode.on(Node.EventType.TOUCH_END, this.onReturnHomeButtonTouched, this);
 
     rootNode.active = false;
     this.settlementBgNode = rootNode;
@@ -456,15 +483,16 @@ export class BattleSceneController extends Component {
     this.refreshSwitchChessboardButton();
   }
 
-  private async onReturnHomeButtonClicked() {
+  private onReturnHomeButtonClicked() {
+    if (this.returningHome) {
+      return;
+    }
+
+    this.returningHome = true;
+    this.unschedule(this.pollMatchState);
     BattleSession.clear();
     void this.leaveCurrentMatch('match_finished_return_home', true);
     director.loadScene('HomeScene');
-  }
-
-  private onReturnHomeButtonTouched(event: EventTouch) {
-    event.propagationStopped = true;
-    void this.onReturnHomeButtonClicked();
   }
 
   private loadSpriteFrameFromBundle(bundle: AssetManager.Bundle, path: string): Promise<SpriteFrame> {

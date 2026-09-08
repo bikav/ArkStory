@@ -175,10 +175,6 @@ export class MatchApi {
     return this.request<PlayerProfilePayload>('/api/v1/player/profile', 'GET');
   }
 
-  public async logout(): Promise<void> {
-    await this.request<Record<string, never>>('/api/v1/auth/logout', 'POST');
-  }
-
   public async updatePlayerProfile(payload: UpdatePlayerProfilePayload): Promise<PlayerProfilePayload> {
     return this.request<PlayerProfilePayload>('/api/v1/player/profile/update', 'POST', payload);
   }

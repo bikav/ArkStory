@@ -28,6 +28,7 @@ interface ApiEnvelope<T> {
 const DEFAULT_API_BASE_URL = 'https://bikav.cn';
 const DEFAULT_CLIENT_VERSION = '1.0.0';
 const DEFAULT_PLATFORM = 'local_account';
+const LOGOUT_TIMEOUT_MS = 3000;
 
 type GlobalConfig = typeof globalThis & {
   ARKSTORY_API_BASE_URL?: string;
@@ -47,6 +48,37 @@ export class AuthApi {
 
   public async register(payload: AuthRequestPayload): Promise<AuthSessionPayload> {
     return this.post<AuthSessionPayload>('/api/v1/auth/register', payload);
+  }
+
+  public async logout(accessToken: string): Promise<void> {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('注销上报超时。')), LOGOUT_TIMEOUT_MS);
+    });
+
+    try {
+      const response = await Promise.race([
+        fetch(`${this.baseUrl}/api/v1/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            'X-Platform': DEFAULT_PLATFORM,
+            'X-Client-Version': DEFAULT_CLIENT_VERSION,
+          },
+          body: '{}',
+        }),
+        timeout,
+      ]);
+
+      if (!response.ok && response.status !== 401) {
+        throw new Error(`注销上报失败（HTTP ${response.status}）。`);
+      }
+    } finally {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+    }
   }
 
   private async post<T>(path: string, payload: AuthRequestPayload): Promise<T> {

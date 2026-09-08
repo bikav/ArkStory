@@ -175,6 +175,7 @@ export class TerrainBoardController extends Component {
   private readonly loadingPieceGridSpriteFrameUuids = new Set<string>();
   private readonly tempWorldPosition = new Vec3();
   private readonly tempScreenPosition = new Vec3();
+  private destroying = false;
   private animalTokenSpriteFrame: SpriteFrame | null = null;
 
   private boardNode: Node | null = null;
@@ -199,6 +200,15 @@ export class TerrainBoardController extends Component {
     this.preloadPieceGridSpriteFrames();
     this.preloadAnimalTokenSpriteFrame();
     this.ensureBoardReady();
+  }
+
+  onDestroy() {
+    this.destroying = true;
+    this.placementListener = null;
+    this.animalPlacementListener = null;
+    this.remoteTerrainPlacementHandler = null;
+    this.remoteAnimalPlacementHandler = null;
+    this.boardCells.clear();
   }
 
   update() {
@@ -570,16 +580,20 @@ export class TerrainBoardController extends Component {
   }
 
   private refreshHighlights() {
+    if (this.destroying || !this.node?.isValid) {
+      return;
+    }
+
     const overlayVisible = (this.pendingPieceType !== null && this.piecePlacementOverlayVisible)
       || (this.pendingAnimalCard !== null && this.animalPlacementOverlayVisible);
 
-    if (this.boardNode) {
+    if (this.boardNode?.isValid) {
       this.boardNode.active = !overlayVisible
         && !this.boardHiddenForAnimalSelection
         && !this.boardHiddenForSettlement;
     }
 
-    if (this.overlayRoot) {
+    if (this.overlayRoot?.isValid) {
       this.overlayRoot.active = overlayVisible;
 
       const dismissArea = this.overlayRoot.getChildByName(BOARD_OVERLAY_DISMISS_AREA_NAME);
@@ -588,11 +602,14 @@ export class TerrainBoardController extends Component {
       }
     }
 
-    if (this.animalTokenRoot) {
+    if (this.animalTokenRoot?.isValid) {
       this.animalTokenRoot.active = overlayVisible;
     }
 
     for (const cell of this.boardCells.values()) {
+      if (!cell.highlightNode?.isValid) {
+        continue;
+      }
       this.applyPieceGridSpriteForCell(cell);
       this.applyPieceGridAvailabilityVisual(cell);
       cell.highlightNode.active = true;
@@ -887,10 +904,6 @@ export class TerrainBoardController extends Component {
       case `${TerrainPieceType.Stump}|${TerrainPieceType.Building}`:
       case `${TerrainPieceType.Mountain}|${TerrainPieceType.Building}`:
       case `${TerrainPieceType.Building}|${TerrainPieceType.Building}`:
-        return MODEL_PREFAB_UUIDS.buildGrade2;
-      case `${TerrainPieceType.Stump}|${TerrainPieceType.Building}|${TerrainPieceType.Building}`:
-      case `${TerrainPieceType.Mountain}|${TerrainPieceType.Building}|${TerrainPieceType.Building}`:
-      case `${TerrainPieceType.Building}|${TerrainPieceType.Building}|${TerrainPieceType.Building}`:
         return MODEL_PREFAB_UUIDS.buildGrade2;
       default:
         return null;

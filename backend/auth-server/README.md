@@ -39,6 +39,7 @@ npm start
 - `GET /api/v1/health`
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
+- `POST /api/v1/auth/logout`（将当前会话标记为已登出并记录 `logout_at`）
 - `GET /api/v1/player/profile`
 
 ## LoginScene 对接说明

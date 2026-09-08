@@ -151,27 +151,28 @@ export class TerrainDraftController extends Component {
 
     if (this.boardController) {
       this.boardController.setPlacementListener(null);
-      this.boardController.setBoardHiddenForAnimalSelection(false);
     }
 
     if (this.animalCardController) {
       this.animalCardController.setOverlayVisibilityListener(null);
     }
 
-    if (this.confirmButtonNode) {
+    if (this.confirmButtonNode?.isValid) {
       this.confirmButtonNode.off(Button.EventType.CLICK, this.onConfirmSelection, this);
     }
 
-    if (this.choiceAnimalButtonNode) {
+    if (this.choiceAnimalButtonNode?.isValid) {
       this.choiceAnimalButtonNode.off(Button.EventType.CLICK, this.onChoiceAnimalButtonClicked, this);
     }
 
-    if (this.endTurnButtonNode) {
+    if (this.endTurnButtonNode?.isValid) {
       this.endTurnButtonNode.off(Button.EventType.CLICK, this.onEndTurnButtonClicked, this);
     }
 
     for (const slotNode of this.slotNodes) {
-      slotNode.off(Node.EventType.TOUCH_END, this.onSlotTouched, this);
+      if (slotNode?.isValid) {
+        slotNode.off(Node.EventType.TOUCH_END, this.onSlotTouched, this);
+      }
     }
   }
 
@@ -1059,44 +1060,6 @@ export class TerrainDraftController extends Component {
     }
   }
 
-  private async autoPlaceRemainingConfirmedPiecesShared() {
-    if (!this.boardController || !this.hasRemainingConfirmedPieces()) {
-      return;
-    }
-
-    const maxAttempts = this.confirmedPieces.filter((pieceType) => pieceType !== null).length;
-    let attempts = 0;
-
-    while (this.hasRemainingConfirmedPieces() && attempts < maxAttempts) {
-      const previewIndex = this.confirmedPieces.findIndex((pieceType) => pieceType !== null);
-      if (previewIndex < 0) {
-        return;
-      }
-
-      const pieceType = this.confirmedPieces[previewIndex];
-      if (!pieceType) {
-        return;
-      }
-
-      const legalPlacements = this.boardController.getLegalPiecePlacements(pieceType);
-      if (legalPlacements.length === 0) {
-        console.warn(`[TerrainDraftController] No legal placement found for timed-out shared piece ${pieceType}.`);
-        return;
-      }
-
-      const randomPlacement = legalPlacements[Math.floor(Math.random() * legalPlacements.length)];
-      const placed = await this.requestSharedPlacePiece(previewIndex, randomPlacement.q, randomPlacement.r);
-      attempts += 1;
-
-      if (!placed) {
-        console.warn(
-          `[TerrainDraftController] Failed to auto-place timed-out shared piece ${pieceType}; fallback to server end-turn.`,
-        );
-        return;
-      }
-    }
-  }
-
   private completeTurn() {
     this.unschedule(this.tickCountdown);
 
@@ -1224,21 +1187,6 @@ export class TerrainDraftController extends Component {
 
   private async handleSharedTurnTimeout() {
     try {
-      if (this.activeTurnSlotIndex < 0) {
-        const randomSlotIndex = this.getRandomAvailableSlotIndex();
-        if (randomSlotIndex < 0) {
-          console.warn('[TerrainDraftController] No piece slot available for shared timeout auto-selection.');
-          return;
-        }
-
-        await this.requestSharedSlotSelection(randomSlotIndex);
-        if (this.activeTurnSlotIndex < 0) {
-          console.warn('[TerrainDraftController] Shared timeout auto-selection did not lock a slot.');
-          return;
-        }
-      }
-
-      await this.autoPlaceRemainingConfirmedPiecesShared();
       await this.requestSharedEndTurn();
     } catch (error) {
       console.error('[TerrainDraftController] Failed to resolve shared turn timeout.', error);

@@ -6,6 +6,7 @@ import {
   EditBox,
   Node,
 } from 'cc';
+import { installAppResumeHandler } from '../AppLifecycle';
 import { AuthApi } from './AuthApi';
 import { AuthSession } from './AuthSession';
 
@@ -26,6 +27,7 @@ const BACK_BUTTON_NAME = 'BackButton';
 @ccclass('LoginSceneController')
 export class LoginSceneController extends Component {
   private readonly authApi = new AuthApi();
+  private disposeAppResumeHandler: (() => void) | null = null;
 
   private loginPageRoot: Node | null = null;
   private registerPageRoot: Node | null = null;
@@ -44,6 +46,7 @@ export class LoginSceneController extends Component {
   private pending = false;
 
   onLoad() {
+    this.disposeAppResumeHandler = installAppResumeHandler();
     this.loginPageRoot = this.node.getChildByName(PAGE_BG_NAME) ?? this.node;
     this.registerPageRoot = this.node.getChildByName(REGISTER_PAGE_BG_NAME) ?? null;
 
@@ -88,7 +91,16 @@ export class LoginSceneController extends Component {
     this.showLoginPage();
   }
 
+  start() {
+    this.scheduleOnce(() => {
+      void this.reportPendingLogout();
+    });
+  }
+
   onDestroy() {
+    this.disposeAppResumeHandler?.();
+    this.disposeAppResumeHandler = null;
+
     const loginNode = this.loginButton?.node;
     if (loginNode?.isValid) {
       loginNode.off(Button.EventType.CLICK, this.onLoginClicked, this);
@@ -107,6 +119,20 @@ export class LoginSceneController extends Component {
     const backNode = this.backButton?.node;
     if (backNode?.isValid) {
       backNode.off(Button.EventType.CLICK, this.onBackClicked, this);
+    }
+  }
+
+  private async reportPendingLogout() {
+    const accessToken = AuthSession.loadPendingLogout();
+    if (!accessToken) {
+      return;
+    }
+
+    try {
+      await this.authApi.logout(accessToken);
+      AuthSession.clearPendingLogout(accessToken);
+    } catch (error) {
+      console.warn('[LoginSceneController] Pending logout report failed.', error);
     }
   }
 
